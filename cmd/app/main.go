@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/Rithik-93/superchess/initializers"
+	"github.com/Rithik-93/superchess/cmd/app/initializers"
 	"github.com/gin-gonic/gin"
 	"github.com/Rithik-93/superchess/cmd/app/controllers"
 )

@@ -3,8 +3,8 @@ package controllers
 import (
 	"net/http"
 
-	"github.com/Rithik-93/superchess/initializers"
-	"github.com/Rithik-93/superchess/models"
+	"github.com/Rithik-93/superchess/cmd/app/initializers"
+	"github.com/Rithik-93/superchess/cmd/app/models"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 
