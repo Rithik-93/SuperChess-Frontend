@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { Chessboard } from 'react-chessboard'
+import { Chessboard as ChessboardBase } from 'react-chessboard'
 import { Chess } from 'chess.js'
 import './App.css'
 import Auth from './components/Auth'
@@ -29,6 +29,7 @@ interface PlayerInfo {
 }
 
 function App() {
+  const Chessboard: any = ChessboardBase as unknown as any;
   const [connected, setConnected] = useState(false);
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [status, setStatus] = useState('Connecting...');
@@ -49,7 +50,7 @@ function App() {
   }, []);
 
   const connectWebSocket = () => {
-    const ws = new WebSocket('ws://localhost:3030/ws');
+    const ws = new WebSocket('ws://localhost:8080/ws');
     wsRef.current = ws;
 
     ws.onopen = () => {
@@ -139,11 +140,9 @@ function App() {
   }, [displayFen, gameState]);
 
   // Drag-drop handler: validate locally using chess.js, send SAN to server, optimistic FEN update
-  const onPieceDrop = (sourceSquare: string, targetSquare: string | null) => {
+  const onPieceDrop = (sourceSquare: string, targetSquare: string) => {
     if (!gameState || !playerInfo || !wsRef.current) return false;
     if (!isMyTurn) return false;
-
-    if (!targetSquare) return false;
 
     const chess = new Chess(currentFen);
     const sourcePiece = chess.get(sourceSquare as any);
@@ -188,8 +187,8 @@ function App() {
     );
   };
 
-  return (
-    <div className="app">
+    return (
+      <div className="app">
       <header className="app-header">
         <h1>SuperChess</h1>
         <div className="connection-status">
@@ -201,17 +200,12 @@ function App() {
       <main className="game-container">
         <Auth />
         <div className="game-board">
-          {gameState && (
-            <Chessboard
-              options={{
-                position: currentFen,
-                boardOrientation: boardOrientation,
-                allowDragging: isMyTurn,
-                onPieceDrop: ({ sourceSquare, targetSquare }) =>
-                  onPieceDrop(sourceSquare, targetSquare),
-              }}
-            />
-          )}
+          <Chessboard
+            position={currentFen}
+            boardOrientation={boardOrientation}
+            arePiecesDraggable={isMyTurn}
+            onPieceDrop={(sourceSquare: string, targetSquare: string) => onPieceDrop(sourceSquare, targetSquare)}
+          />
         </div>
         
         <div className="game-info">

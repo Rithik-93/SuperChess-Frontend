@@ -40,4 +40,8 @@ export function beginGoogleOAuth() {
   window.location.href = `${API_URL}/auth/google`;
 }
 
+export async function me() {
+  return request<{ user: { id: number; email: string; name?: string; avatar?: string } }>(`/me`);
+}
+
 
