@@ -3,11 +3,10 @@ package controllers
 import (
 	"net/http"
 
-	"github.com/Rithik-93/superchess/cmd/app/initializers"
-	"github.com/Rithik-93/superchess/cmd/app/models"
+	"github.com/Rithik-93/superchess/services/api-gateway/initializers"
+	"github.com/Rithik-93/superchess/services/api-gateway/models"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
-
 )
 
 func UserSignup(c *gin.Context) {
@@ -24,7 +23,6 @@ func UserSignup(c *gin.Context) {
 		return
 	}
 
-	// Check if user already exists
 	var existingUser models.User
 	result := initializers.DB.Where("email = ?", signupBody.Email).First(&existingUser).Error
 	if result == nil {
@@ -34,7 +32,6 @@ func UserSignup(c *gin.Context) {
 		return
 	}
 
-	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(signupBody.Password), bcrypt.DefaultCost)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{

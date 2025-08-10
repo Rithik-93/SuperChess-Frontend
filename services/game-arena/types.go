@@ -8,11 +8,10 @@ import (
 	"github.com/notnil/chess"
 )
 
-// Game struct using notnil/chess
 type Game struct {
 	ID        string
-	Player1   *Player // White player
-	Player2   *Player // Black player
+	Player1   *Player
+	Player2   *Player
 	ChessGame *chess.Game
 	Mutex     sync.Mutex
 }
@@ -22,7 +21,6 @@ var (
 	gamesMutex sync.Mutex
 )
 
-// Message types
 const (
 	MsgTypeJoin     = "join"
 	MsgTypeMove     = "move"
@@ -45,7 +43,7 @@ type JoinData struct {
 type MoveData struct {
 	GameID   string `json:"gameId"`
 	PlayerID string `json:"playerId"`
-	Move     string `json:"move"` // Move in algebraic notation (e.g., "e4", "Nf3", "O-O")
+	Move     string `json:"move"`
 }
 
 type GameStateData struct {
