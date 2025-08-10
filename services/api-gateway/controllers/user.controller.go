@@ -2,11 +2,14 @@ package controllers
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/Rithik-93/superchess/services/api-gateway/initializers"
 	"github.com/Rithik-93/superchess/services/api-gateway/models"
 	"github.com/Rithik-93/superchess/services/api-gateway/utils"
+	"github.com/Rithik-93/superchess/shared/env"
 	"github.com/gin-gonic/gin"
+	jwt "github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -138,9 +141,61 @@ func UserLogin(c *gin.Context) {
 }
 
 func UserLogout(c *gin.Context) {
-	// For now, logout is simple since we don't have session management
-	// In a production app, you would invalidate the JWT token or clear the session
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Logout successful",
-	})
+    // Clear the access token cookie
+    c.SetCookie("accessToken", "", -1, "/", "", false, true)
+    c.JSON(http.StatusOK, gin.H{"message": "Logout successful"})
+}
+
+// CurrentUser returns the user derived from the accessToken cookie
+func CurrentUser(c *gin.Context) {
+    tokenString, err := c.Cookie("accessToken")
+    if err != nil || tokenString == "" {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "missing access token"})
+        return
+    }
+
+    accessSecret := env.GetString("JWT_ACCESS_SECRET", "lalala")
+    token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
+        return []byte(accessSecret), nil
+    })
+    if err != nil || !token.Valid {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid access token"})
+        return
+    }
+
+    claims, ok := token.Claims.(jwt.MapClaims)
+    if !ok {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token claims"})
+        return
+    }
+
+    var userID uint
+    switch v := claims["sub"].(type) {
+    case float64:
+        userID = uint(v)
+    case string:
+        if parsed, convErr := strconv.Atoi(v); convErr == nil {
+            userID = uint(parsed)
+        }
+    }
+    if userID == 0 {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid subject claim"})
+        return
+    }
+
+    var user models.User
+    if err := initializers.DB.First(&user, userID).Error; err != nil {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{
+        "user": gin.H{
+            "id":       user.ID,
+            "email":    user.Email,
+            "name":     user.Name,
+            "avatar":   user.Avatar,
+            "provider": user.Provider,
+        },
+    })
 }

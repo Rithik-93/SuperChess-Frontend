@@ -7,17 +7,14 @@ import (
 	"github.com/Rithik-93/superchess/services/api-gateway/initializers"
 	"github.com/Rithik-93/superchess/services/api-gateway/models"
 	"github.com/Rithik-93/superchess/services/api-gateway/utils"
+	"github.com/Rithik-93/superchess/shared/env"
 	"github.com/gin-gonic/gin"
 	"github.com/markbates/goth/gothic"
 )
 
-type providerContextKeyType string
-
-const providerContextKey providerContextKeyType = "provider"
-
 func AuthController(c *gin.Context) {
-	provider := c.Param("provider")
-	reqWithProvider := c.Request.WithContext(context.WithValue(c.Request.Context(), providerContextKey, provider))
+    provider := c.Param("provider")
+    reqWithProvider := c.Request.WithContext(context.WithValue(c.Request.Context(), gothic.ProviderParamKey, provider))
 	user, err := gothic.CompleteUserAuth(c.Writer, reqWithProvider)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
@@ -67,23 +64,14 @@ func AuthController(c *gin.Context) {
 		}
 	}
 
-	accessToken, _, err := utils.IssueAccessToken(dbUser, provider)
+    accessToken, _, err := utils.IssueAccessToken(dbUser, provider)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to sign access token"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Authentication successful",
-		"user": gin.H{
-			"id":       dbUser.ID,
-			"email":    dbUser.Email,
-			"name":     dbUser.Name,
-			"avatar":   dbUser.Avatar,
-			"provider": dbUser.Provider,
-		},
-		"tokens": gin.H{
-			"accessToken": accessToken,
-		},
-	})
+    c.SetCookie("accessToken", accessToken, 3600, "/", "", false, true)
+
+    frontendURL := env.GetString("FRONTEND_URL", "http://localhost:5173/")
+    c.Redirect(http.StatusFound, frontendURL)
 }

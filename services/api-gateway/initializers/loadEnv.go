@@ -18,6 +18,6 @@ func LoadEnv() {
 
 	// Set default values for environment variables if not set
 	if os.Getenv("PORT") == "" {
-		os.Setenv("PORT", "8080")
+		os.Setenv("PORT", "3030")
 	}
 }

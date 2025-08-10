@@ -1,0 +1,12 @@
+{
+  "name": "superchess-backend",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "go run ./services/api-gateway",
+    "build": "go build ./services/api-gateway",
+    "start": "go run ./services/api-gateway"
+  }
+}
+
+
