@@ -17,8 +17,6 @@ type User struct {
 	GoogleRefresh string
 	GoogleToken   string
 	GoogleExpiry  time.Time
-	AccessToken        string
 	RefreshToken       string
-	AccessTokenExpiry  time.Time
 	RefreshTokenExpiry time.Time
 }

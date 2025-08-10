@@ -5,12 +5,12 @@ import (
 
 	"github.com/Rithik-93/superchess/services/api-gateway/initializers"
 	"github.com/Rithik-93/superchess/services/api-gateway/models"
+	"github.com/Rithik-93/superchess/services/api-gateway/utils"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
 
 func UserSignup(c *gin.Context) {
-	// Get email and password from request body
 	var signupBody struct {
 		Email    string `json:"email" binding:"required,email"`
 		Password string `json:"password" binding:"required,min=6"`
@@ -45,7 +45,24 @@ func UserSignup(c *gin.Context) {
 		Password: string(hashedPassword),
 	}
 
-	// Save the user to the database
+	refreshToken, refreshExp, err := utils.IssueRefreshToken(user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to sign refresh token",
+		})
+		return
+	}
+	user.RefreshToken = refreshToken
+	user.RefreshTokenExpiry = refreshExp
+
+	accessToken, _, err := utils.IssueAccessToken(user, "email")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to sign access token",
+		})
+		return
+	}
+
 	result = initializers.DB.Create(&user).Error
 	if result != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -54,6 +71,7 @@ func UserSignup(c *gin.Context) {
 		return
 	}
 
+	c.SetCookie("accessToken", accessToken, 3600, "/", "", false, true)
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "User created successfully",
 		"user": gin.H{
@@ -85,23 +103,38 @@ func UserLogin(c *gin.Context) {
 		return
 	}
 
-	// Compare the password with the hashed password
-	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.Password))
+    err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.Password))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": "Invalid email or password",
 		})
 		return
 	}
+    accessToken, _, err := utils.IssueAccessToken(user, "email")
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to sign access token"})
+        return
+    }
+    refreshToken, refreshExp, err := utils.IssueRefreshToken(user)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to sign refresh token"})
+        return
+    }
+    user.RefreshToken = refreshToken
+    user.RefreshTokenExpiry = refreshExp
+    if err := initializers.DB.Save(&user).Error; err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to persist refresh token"})
+        return
+    }
 
-	// Respond with success message
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Login successful",
-		"user": gin.H{
-			"id":    user.ID,
-			"email": user.Email,
-		},
-	})
+    c.SetCookie("accessToken", accessToken, 3600, "/", "", false, true)
+    c.JSON(http.StatusOK, gin.H{
+        "message": "Login successful",
+        "user": gin.H{
+            "id":    user.ID,
+            "email": user.Email,
+        },
+    })
 }
 
 func UserLogout(c *gin.Context) {
