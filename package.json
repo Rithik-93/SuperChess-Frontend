@@ -8,10 +8,12 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start:backend": "cross-env DB=postgres://user:pass@localhost:5432/superchess BACKEND_URL=http://localhost:8080 FRONTEND_URL=http://localhost:5173 go run ../SuperChess-Backend/services/api-gateway",
+    "start:backend": "cross-env DB=postgres://user:pass@localhost:5432/superchess BACKEND_URL=http://localhost:3000 FRONTEND_URL=http://localhost:5173 go run ../SuperChess-Backend/services/api-gateway",
     "start:frontend": "vite"
   },
   "dependencies": {
+    "@types/node": "^24.2.1",
+    "axios": "^1.11.0",
     "chess.js": "^1.4.0",
     "react": "^19.1.0",
     "react-chessboard": "^5.2.2",
