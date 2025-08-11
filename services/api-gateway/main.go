@@ -4,6 +4,8 @@ import (
 	"github.com/Rithik-93/superchess/services/api-gateway/auth"
 	"github.com/Rithik-93/superchess/services/api-gateway/controllers"
 	"github.com/Rithik-93/superchess/services/api-gateway/initializers"
+
+	// "github.com/Rithik-93/superchess/shared/env"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
@@ -17,6 +19,8 @@ func init() {
 func main() {
 	auth.NewAuth()
 	router := gin.Default()
+	// frontendURL := env.GetString("FRONTEND_URL", "http://localhost:5173/")
+
     router.Use(cors.New(cors.Config{
         AllowOrigins:     []string{"http://localhost:5173"},
         AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
@@ -33,8 +37,10 @@ func main() {
 	router.POST("/login", controllers.UserLogin)
 	router.POST("/logout", controllers.UserLogout)
     router.GET("/me", controllers.CurrentUser)
+
+	// OAuth
 	router.GET("/auth/:provider", auth.BeginAuth)
 	router.GET("/auth/:provider/callback", auth.AuthController)
 
-	router.Run()
+	router.Run(":3000")
 }

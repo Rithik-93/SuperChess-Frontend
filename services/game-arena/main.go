@@ -88,8 +88,8 @@ func handleJoin(player *Player, data json.RawMessage) {
 	gameID := uuid.New().String()
 	game := &Game{
 		ID:        gameID,
-		Player1:   opponent, // White player
-		Player2:   player,   // Black player
+		Player1:   opponent,
+		Player2:   player,
 		ChessGame: chess.NewGame(),
 	}
 	
