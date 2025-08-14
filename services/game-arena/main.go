@@ -49,6 +49,10 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		
 		switch m.Type {
+		case MsgTypeJoinInvite:
+			handleJoinInvite(player, m.Data)
+		case MsgTypeCreateGame:
+			handleCreateGame(player, m.Data)
 		case MsgTypeJoin:
 			handleJoin(player, m.Data)
 		case MsgTypeMove:
@@ -57,6 +61,71 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Unknown message type from player %s: %s", playerID, m.Type)
 		}
 	}
+}
+
+func handleCreateGame(player *Player, data json.RawMessage) {
+	var createGameData CreateGameData
+	if err := json.Unmarshal(data, &createGameData); err != nil {
+		log.Printf("Invalid create game data from player %s: %v", player.ID, err)
+		return
+	}
+
+	gameID := uuid.New().String()
+	game := &Game{
+		ID:        gameID,
+		Player1:   player,
+		ChessGame: chess.NewGame(),
+	}
+	
+	// Set player1 as white (game creator gets white pieces)
+	player.Color = ColorWhite
+	
+	gamesMutex.Lock()
+	games[gameID] = game
+	gamesMutex.Unlock()
+
+	log.Printf("Game %s created by player %s, waiting for another player", gameID, player.ID)
+	
+	// Send game ID back to the creator
+	sendGameCreated(player, gameID)
+}
+
+func handleJoinInvite(player *Player, data json.RawMessage) {
+	var joinInviteData JoinInviteData
+	if err := json.Unmarshal(data, &joinInviteData); err != nil {
+		log.Printf("Invalid join invite data from player %s: %v", player.ID, err)
+		return
+	}
+
+	gamesMutex.Lock()
+	game, exists := games[joinInviteData.GameID]
+	gamesMutex.Unlock()
+	
+	if !exists {
+		log.Printf("Game %s not found for player %s", joinInviteData.GameID, player.ID)
+		sendErrorToPlayer(player, "Game not found")
+		return
+	}
+
+	game.Mutex.Lock()
+	defer game.Mutex.Unlock()
+
+	// Check if game already has two players
+	if game.Player2 != nil {
+		log.Printf("Game %s is already full, player %s cannot join", joinInviteData.GameID, player.ID)
+		sendErrorToPlayer(player, "Game is already full")
+		return
+	}
+
+	game.Player2 = player
+	player.Color = ColorBlack
+
+	log.Printf("Player %s joined game %s as black", player.ID, joinInviteData.GameID)
+	
+	sendPlayerInfo(game.Player1, joinInviteData.GameID, "white")
+	sendPlayerInfo(player, joinInviteData.GameID, "black")
+	
+	game.sendStateToPlayers()
 }
 
 func handleJoin(player *Player, data json.RawMessage) {
@@ -70,21 +139,17 @@ func handleJoin(player *Player, data json.RawMessage) {
 	defer waitingMutex.Unlock()
 
 	if len(waitingPlayers) == 0 {
-		// No waiting players, add this player to the queue
 		waitingPlayers = append(waitingPlayers, player)
 		log.Printf("Player %s is waiting for a match", player.ID)
 		return
 	}
 
-	// Match with the first waiting player
 	opponent := waitingPlayers[0]
 	waitingPlayers = waitingPlayers[1:]
 
-	// Assign colors (first player is white, second is black)
 	opponent.Color = ColorWhite
 	player.Color = ColorBlack
 
-	// Create new game
 	gameID := uuid.New().String()
 	game := &Game{
 		ID:        gameID,
@@ -99,11 +164,9 @@ func handleJoin(player *Player, data json.RawMessage) {
 
 	log.Printf("Game %s started between %s (White) and %s (Black)", gameID, opponent.ID, player.ID)
 	
-	// Send player info to both players
 	sendPlayerInfo(opponent, gameID, "white")
 	sendPlayerInfo(player, gameID, "black")
 	
-	// Send initial game state to both players
 	game.sendStateToPlayers()
 }
 
@@ -146,7 +209,6 @@ func handleMove(player *Player, data json.RawMessage) {
 	
 	log.Printf("Player %s made move %s in game %s", player.ID, moveData.Move, game.ID)
 
-	// Send updated game state to both players
 	game.sendStateToPlayers()
 }
 

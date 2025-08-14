@@ -132,3 +132,34 @@ func sendPlayerInfo(player *Player, gameID, color string) {
 
 	player.Conn.WriteMessage(websocket.TextMessage, msgBytes)
 }
+
+func sendGameCreated(player *Player, gameID string) {
+	if player == nil || player.Conn == nil {
+		return
+	}
+
+	gameCreatedData := GameCreatedData{
+		GameID: gameID,
+	}
+
+	msg := Message{Type: MsgTypeGameCreated}
+	data, _ := json.Marshal(gameCreatedData)
+	msg.Data = data
+	msgBytes, _ := json.Marshal(msg)
+
+	player.Conn.WriteMessage(websocket.TextMessage, msgBytes)
+}
+
+func sendErrorToPlayer(player *Player, errorMsg string) {
+	if player == nil || player.Conn == nil {
+		return
+	}
+
+	errorData := ErrorData{Message: errorMsg}
+	msg := Message{Type: MsgTypeError}
+	data, _ := json.Marshal(errorData)
+	msg.Data = data
+	msgBytes, _ := json.Marshal(msg)
+
+	player.Conn.WriteMessage(websocket.TextMessage, msgBytes)
+}

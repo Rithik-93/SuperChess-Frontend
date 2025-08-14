@@ -22,12 +22,15 @@ var (
 )
 
 const (
+	MsgTypeCreateGame = "createGame"
+	MsgTypeJoinInvite = "joinInvite"
 	MsgTypeJoin     = "join"
 	MsgTypeMove     = "move"
 	MsgTypeState    = "state"
 	MsgTypeGameOver = "gameOver"
 	MsgTypeError    = "error"
 	MsgTypePlayerInfo = "playerInfo"
+	MsgTypeGameCreated = "gameCreated"
 )
 
 type Message struct {
@@ -38,6 +41,19 @@ type Message struct {
 type JoinData struct {
 	GameID   string `json:"gameId"`
 	PlayerID string `json:"playerId"`
+}
+
+type CreateGameData struct {
+	PlayerID string `json:"playerId"`
+}
+
+type JoinInviteData struct {
+	GameID   string `json:"gameId"`
+	PlayerID string `json:"playerId"`
+}
+
+type GameCreatedData struct {
+	GameID string `json:"gameId"`
 }
 
 type MoveData struct {
