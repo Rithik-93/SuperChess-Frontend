@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Button } from '../ui/button';
 
 interface GameCreatedModalProps {
   isOpen: boolean;
@@ -22,43 +24,31 @@ const GameCreatedModal: React.FC<GameCreatedModalProps> = ({ isOpen, gameId, onC
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>Game Created!</h3>
-          <button className="close-button" onClick={onClose}>
-            ×
-          </button>
-        </div>
-        
-        <div className="modal-body">
-          <p>Share this Game ID with your friend to join:</p>
-          
-          <div className="game-id-display">
+    <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+      <Card className="w-full max-w-lg bg-white/10" onClick={(e) => e.stopPropagation()}>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-white">Game Created!</CardTitle>
+          <button onClick={onClose} className="text-white/70 hover:text-white">×</button>
+        </CardHeader>
+        <CardContent>
+          <p className="text-white/90">Share this Game ID with your friend to join:</p>
+          <div className="flex gap-2 my-4">
             <input
               type="text"
               value={gameId}
               readOnly
-              className="game-id-input"
+              className="flex-1 px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none"
             />
-            <button 
-              onClick={handleCopy}
-              className="copy-button"
-              title="Copy to clipboard"
-            >
-              {copied ? '✓' : '📋'}
-            </button>
+            <Button onClick={handleCopy} title="Copy to clipboard" variant={copied ? 'secondary' : 'default'}>
+              {copied ? 'Copied' : 'Copy'}
+            </Button>
           </div>
-          
-          <p className="waiting-text">Waiting for your friend to join...</p>
-          
-          <div className="modal-actions">
-            <button onClick={onClose} className="control-button primary">
-              Got it!
-            </button>
+          <p className="text-sm text-white/70">Waiting for your friend to join...</p>
+          <div className="flex justify-end mt-6">
+            <Button onClick={onClose}>Got it!</Button>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

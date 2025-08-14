@@ -1,5 +1,7 @@
 import React from 'react';
 import { useGame } from '../../contexts/GameContext';
+import { Badge } from '../ui/badge';
+import { ScrollArea } from '../ui/scroll-area';
 
 const GameInfo: React.FC = () => {
   const { gameState } = useGame();
@@ -31,41 +33,38 @@ const GameInfo: React.FC = () => {
   };
 
   return (
-    <div className="game-info">
-      <div className="game-status">
-        <div className={`status-indicator ${getStatusColor()}`}>
+    <div className="space-y-4 text-white/90">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant={getStatusColor() === 'success' ? 'success' : getStatusColor() === 'danger' ? 'destructive' : getStatusColor() === 'warning' ? 'warning' : 'secondary'}>
           {getTurnText()}
-        </div>
-        
-        {gameState.inCheck && !gameState.gameOver && (
-          <div className="check-indicator">
-            Check!
-          </div>
-        )}
+        </Badge>
+        {gameState.inCheck && !gameState.gameOver && <Badge variant="destructive">Check!</Badge>}
       </div>
 
-      <div className="player-info">
-        <div className="player-color">
-          Playing as: <strong>{gameState.playerColor || 'Not assigned'}</strong>
+      <div className="space-y-1">
+        <div>
+          Playing as: <span className="font-semibold capitalize">{gameState.playerColor || 'Not assigned'}</span>
         </div>
         {gameState.gameId && (
-          <div className="game-id">
-            Game ID: <code>{gameState.gameId}</code>
+          <div className="text-sm text-white/70">
+            Game ID: <span className="font-mono bg-white/10 px-2 py-0.5 rounded-md">{gameState.gameId}</span>
           </div>
         )}
       </div>
 
       {gameState.moves.length > 0 && (
-        <div className="move-history">
-          <h4>Move History</h4>
-          <div className="moves-list">
-            {gameState.moves.map((move, index) => (
-              <span key={index} className="move">
-                {Math.floor(index / 2) + 1}
-                {index % 2 === 0 ? '.' : '...'} {move}
-              </span>
-            ))}
-          </div>
+        <div className="space-y-2">
+          <h4 className="font-semibold">Move History</h4>
+          <ScrollArea className="max-h-56">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm font-mono text-white/80">
+              {gameState.moves.map((move, index) => (
+                <div key={index} className="">
+                  {Math.floor(index / 2) + 1}
+                  {index % 2 === 0 ? '.' : '...'} {move}
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
         </div>
       )}
     </div>

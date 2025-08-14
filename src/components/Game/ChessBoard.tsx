@@ -56,19 +56,21 @@ const ChessBoard: React.FC = () => {
   const boardOrientation = gameState.playerColor === 'black' ? 'black' : 'white';
 
   return (
-    <div className="chess-board-container">
+    <div className="w-full h-full">
       <Chessboard
         options={{
           position: gameState.fen,
           onPieceDrop: onDrop,
           boardOrientation: boardOrientation,
-          allowDragging: !gameState.gameOver && 
+          allowDragging:
+            !gameState.gameOver &&
             !gameState.isWaitingForPlayer &&
             gameState.turn === gameState.playerColor &&
             gameState.gameId !== null,
           boardStyle: {
-            borderRadius: '8px',
-            boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+            borderRadius: '16px',
+            boxShadow: '0 30px 60px rgba(0,0,0,0.35)',
+            background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 70%)',
           },
         }}
       />
