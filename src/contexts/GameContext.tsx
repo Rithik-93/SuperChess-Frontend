@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react';
-import type { GameState, WSMessage, JoinData, MoveData, GameStateData, PlayerInfoData, ErrorData } from '../types';
+import type { GameState, WSMessage, JoinData, MoveData, GameStateData, PlayerInfoData, ErrorData, CreateGameData, JoinInviteData, GameCreatedData } from '../types';
 
 interface GameContextType {
   gameState: GameState;
   connect: () => void;
   disconnect: () => void;
   joinGame: () => void;
+  createGame: () => void;
+  joinInvite: (gameId: string) => void;
   makeMove: (move: string) => void;
   resetGame: () => void;
 }
@@ -26,6 +28,8 @@ const initialGameState: GameState = {
   gameOver: false,
   isConnected: false,
   isWaitingForMatch: false,
+  createdGameId: null,
+  isWaitingForPlayer: false,
 };
 
 export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -102,6 +106,18 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           playerId: playerInfo.playerId,
           playerColor: playerInfo.color,
           isWaitingForMatch: false,
+          // Only set isWaitingForPlayer to false if we weren't already waiting for a player
+          // (this handles the case where we created a game and are still waiting)
+          isWaitingForPlayer: prev.createdGameId ? prev.isWaitingForPlayer : false,
+        }));
+        break;
+
+      case 'gameCreated':
+        const gameCreatedData: GameCreatedData = message.data;
+        setGameState(prev => ({
+          ...prev,
+          createdGameId: gameCreatedData.gameId,
+          isWaitingForPlayer: true,
         }));
         break;
 
@@ -118,6 +134,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           gameOver: gameStateData.gameOver,
           winner: gameStateData.winner,
           reason: gameStateData.reason,
+          isWaitingForPlayer: false,
+          createdGameId: null, // Clear created game ID when game starts
         }));
         break;
 
@@ -126,6 +144,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setGameState(prev => ({
           ...prev,
           error: errorData.message,
+          isWaitingForMatch: false,
+          isWaitingForPlayer: false,
         }));
         break;
 
@@ -171,6 +191,55 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }));
   };
 
+  const createGame = () => {
+    if (!gameState.isConnected) {
+      setGameState(prev => ({
+        ...prev,
+        error: 'Not connected to server',
+      }));
+      return;
+    }
+
+    const createGameData: CreateGameData = {
+      playerId: gameState.playerId || `player_${Date.now()}`,
+    };
+
+    sendMessage({
+      type: 'createGame',
+      data: createGameData,
+    });
+
+    setGameState(prev => ({
+      ...prev,
+      error: undefined,
+    }));
+  };
+
+  const joinInvite = (gameId: string) => {
+    if (!gameState.isConnected) {
+      setGameState(prev => ({
+        ...prev,
+        error: 'Not connected to server',
+      }));
+      return;
+    }
+
+    const joinInviteData: JoinInviteData = {
+      gameId,
+      playerId: gameState.playerId || `player_${Date.now()}`,
+    };
+
+    sendMessage({
+      type: 'joinInvite',
+      data: joinInviteData,
+    });
+
+    setGameState(prev => ({
+      ...prev,
+      error: undefined,
+    }));
+  };
+
   const makeMove = (move: string) => {
     if (!gameState.gameId || !gameState.playerId) {
       setGameState(prev => ({
@@ -199,7 +268,6 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }));
   };
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       disconnect();
@@ -211,6 +279,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     connect,
     disconnect,
     joinGame,
+    createGame,
+    joinInvite,
     makeMove,
     resetGame,
   };

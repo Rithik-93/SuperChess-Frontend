@@ -12,6 +12,10 @@ const ChessBoard: React.FC = () => {
       return false;
     }
 
+    if (gameState.isWaitingForPlayer) {
+      return false;
+    }
+
     // Check if it's the player's turn
     if (gameState.turn !== gameState.playerColor) {
       return false;
@@ -59,6 +63,7 @@ const ChessBoard: React.FC = () => {
           onPieceDrop: onDrop,
           boardOrientation: boardOrientation,
           allowDragging: !gameState.gameOver && 
+            !gameState.isWaitingForPlayer &&
             gameState.turn === gameState.playerColor &&
             gameState.gameId !== null,
           boardStyle: {

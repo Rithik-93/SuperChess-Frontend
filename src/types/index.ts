@@ -23,6 +23,19 @@ export interface JoinData {
   playerId: string;
 }
 
+export interface CreateGameData {
+  playerId: string;
+}
+
+export interface JoinInviteData {
+  gameId: string;
+  playerId: string;
+}
+
+export interface GameCreatedData {
+  gameId: string;
+}
+
 export interface MoveData {
   gameId: string;
   playerId: string;
@@ -66,5 +79,7 @@ export interface GameState {
   reason?: string;
   isConnected: boolean;
   isWaitingForMatch: boolean;
+  createdGameId: string | null;
+  isWaitingForPlayer: boolean;
   error?: string;
 }
