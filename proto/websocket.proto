@@ -1,0 +1,125 @@
+syntax = "proto3";
+
+package websocket;
+
+import "google/protobuf/timestamp.proto";
+
+// Base message wrapper for all WebSocket communication
+message WSMessage {
+  oneof payload {
+    JoinRequest join_request = 1;
+    MoveRequest move_request = 2;
+    CreateGameRequest create_game_request = 3;
+    JoinInviteRequest join_invite_request = 4;
+    GameState game_state = 5;
+    PlayerInfo player_info = 6;
+    ErrorResponse error_response = 7;
+    GameCreated game_created = 8;
+    ReconnectRequest reconnect_request = 9;
+  }
+}
+
+// Client -> Server Messages
+message JoinRequest {
+  uint32 player_id = 1;
+}
+
+message MoveRequest {
+  string game_id = 1;
+  uint32 player_id = 2;
+  string move = 3; // Algebraic notation (e.g., "e4", "Nf3")
+}
+
+message CreateGameRequest {
+  uint32 player_id = 1;
+}
+
+message JoinInviteRequest {
+  string game_id = 1;
+  uint32 player_id = 2;
+}
+
+message ReconnectRequest {
+  string game_id = 1;
+  uint32 player_id = 2;
+}
+
+// Server -> Client Messages
+message GameState {
+  string game_id = 1;
+  repeated string board = 2; // 8x8 board representation
+  string fen = 3; // FEN string
+  string turn = 4; // "white" or "black"
+  repeated string moves = 5; // Array of moves made
+  bool in_check = 6;
+  bool game_over = 7;
+  string winner = 8; // "white", "black", or empty
+  string reason = 9; // Reason for game end
+  google.protobuf.Timestamp last_move_time = 10;
+}
+
+message PlayerInfo {
+  string game_id = 1;
+  uint32 player_id = 2;
+  string color = 3; // "white" or "black"
+  google.protobuf.Timestamp joined_at = 4;
+}
+
+message ErrorResponse {
+  string message = 1;
+  string code = 2; // Error code for frontend handling
+  google.protobuf.Timestamp timestamp = 3;
+}
+
+message GameCreated {
+  string game_id = 1;
+  uint32 creator_id = 2;
+  google.protobuf.Timestamp created_at = 3;
+}
+
+// Game-specific data structures
+message ChessPiece {
+  string type = 1; // "pawn", "rook", "knight", "bishop", "queen", "king"
+  string color = 2; // "white" or "black"
+  string position = 3; // "e4", "d5", etc.
+}
+
+message GameMove {
+  string from = 1;
+  string to = 2;
+  string piece = 3;
+  string color = 4;
+  bool is_capture = 5;
+  bool is_check = 6;
+  bool is_checkmate = 7;
+  bool is_promotion = 8;
+  string promotion_piece = 9; // If promotion, what piece
+  google.protobuf.Timestamp timestamp = 10;
+}
+
+// Timer-related messages (for future implementation)
+message GameTimer {
+  uint32 white_time_ms = 1; // Time remaining in milliseconds
+  uint32 black_time_ms = 2;
+  uint32 white_increment_ms = 3; // Time added per move
+  uint32 black_increment_ms = 4;
+  string current_player = 5; // "white" or "black"
+  google.protobuf.Timestamp last_move_time = 6;
+  bool is_active = 7;
+}
+
+// Matchmaking messages
+message MatchmakingStatus {
+  uint32 position_in_queue = 1;
+  uint32 estimated_wait_time_seconds = 2;
+  google.protobuf.Timestamp joined_at = 3;
+}
+
+// Game invitation messages
+message GameInvitation {
+  string game_id = 1;
+  uint32 inviter_id = 2;
+  string inviter_name = 3;
+  google.protobuf.Timestamp expires_at = 4;
+  string time_control = 5; // "blitz", "rapid", "classical"
+}

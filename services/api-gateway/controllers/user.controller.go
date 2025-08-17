@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -152,19 +153,26 @@ func UserLogout(c *gin.Context) {
 
 func RefreshToken(c *gin.Context) {
     refreshTokenString := c.GetHeader("Authorization")
+    log.Printf("Refresh token header: %s", refreshTokenString)
+    
     if refreshTokenString == "" {
         if cookie, err := c.Cookie("refreshToken"); err == nil {
             refreshTokenString = cookie
+            log.Printf("Got refresh token from cookie: %s", refreshTokenString[:20] + "...")
+        } else {
+            log.Printf("No refresh token cookie found: %v", err)
         }
     }
     
     if refreshTokenString == "" {
+        log.Printf("No refresh token found in header or cookie")
         c.JSON(http.StatusUnauthorized, gin.H{"error": "missing refresh token"})
         return
     }
     
     if len(refreshTokenString) > 7 && refreshTokenString[:7] == "Bearer " {
         refreshTokenString = refreshTokenString[7:]
+        log.Printf("Removed Bearer prefix, token: %s", refreshTokenString[:20] + "...")
     }
     
     refreshSecret := env.GetString("JWT_REFRESH_SECRET", "lalalalalala")
