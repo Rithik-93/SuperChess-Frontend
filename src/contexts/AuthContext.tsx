@@ -18,30 +18,6 @@ const API_BASE_URL = 'http://localhost:3000';
 
 axios.defaults.withCredentials = true;
 
-axios.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-    
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-      
-      try {
-        const response = await axios.post(`${API_BASE_URL}/refresh`);
-        if (response.status === 200) {
-          return axios(originalRequest);
-        }
-      } catch (refreshError) {
-        console.error('Token refresh failed:', refreshError);
-        window.location.href = '/login';
-        return Promise.reject(refreshError);
-      }
-    }
-    
-    return Promise.reject(error);
-  }
-);
-
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -49,6 +25,60 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     checkAuth();
+  }, []);
+
+  useEffect(() => {
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        const originalRequest = error.config;
+        
+        if (originalRequest.url?.includes('/refresh')) {
+          return Promise.reject(error);
+        }
+        
+        if (error.response?.status === 401 && !originalRequest._retry) {
+          originalRequest._retry = true;
+          
+          try {
+            const cookies = document.cookie.split(';');
+            let refreshToken = '';
+            for (const cookie of cookies) {
+              const [name, value] = cookie.trim().split('=');
+              if (name === 'refreshToken') {
+                refreshToken = value;
+                break;
+              }
+            }
+            
+            if (!refreshToken) {
+              throw new Error('No refresh token found');
+            }
+            
+            const response = await axios.post(`${API_BASE_URL}/refresh`, {}, {
+              headers: {
+                'Authorization': `Bearer ${refreshToken}`
+              }
+            });
+            
+            if (response.status === 200) {
+              return axios(originalRequest);
+            }
+          } catch (refreshError) {
+            console.error('Token refresh failed:', refreshError);
+            setUser(null);
+            window.location.href = '/login';
+            return Promise.reject(refreshError);
+          }
+        }
+        
+        return Promise.reject(error);
+      }
+    );
+
+    return () => {
+      axios.interceptors.response.eject(interceptor);
+    };
   }, []);
 
   useEffect(() => {
@@ -115,7 +145,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const refreshToken = async (): Promise<boolean> => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/refresh`);
+      const cookies = document.cookie.split(';');
+      let refreshToken = '';
+      for (const cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'refreshToken') {
+          refreshToken = value;
+          break;
+        }
+      }
+      
+      if (!refreshToken) {
+        console.error('No refresh token found in cookies');
+        return false;
+      }
+      
+      console.log('Attempting to refresh token with:', refreshToken.substring(0, 20) + '...');
+      
+      const response = await axios.post(`${API_BASE_URL}/refresh`, {}, {
+        headers: {
+          'Authorization': `Bearer ${refreshToken}`
+        }
+      });
       return true;
     } catch (err) {
       console.error('Token refresh failed:', err);
