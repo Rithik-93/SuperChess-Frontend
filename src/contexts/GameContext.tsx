@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from './AuthContext';
 import type { GameState, WSMessage, JoinData, MoveData, GameStateData, PlayerInfoData, ErrorData, CreateGameData, JoinInviteData, GameCreatedData } from '../types';
 
 interface GameContextType {
@@ -37,16 +38,15 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const wsRef = useRef<WebSocket | null>(null);
   const navigate = useNavigate();
+  const { refreshToken } = useAuth();
 
   const connect = (gameId?: string) => {
-    // Always disconnect existing connection first
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
     }
 
     try {
-      // WebSocket connection - include gameId if reconnecting to specific game
       const wsUrl = gameId ? `${WS_URL}?gameId=${gameId}` : WS_URL;
       wsRef.current = new WebSocket(wsUrl);
 
@@ -68,12 +68,17 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
       };
 
-      wsRef.current.onclose = () => {
-        console.log('WebSocket disconnected');
-        setGameState(prev => ({
-          ...prev,
-          isConnected: false,
-        }));
+      wsRef.current.onclose = (event) => {
+        console.log('WebSocket disconnected:', event.code, event.reason);
+        
+        if (event.code === 1008 || event.code === 1011) {
+          reconnectWithTokenRefresh(gameId);
+        } else {
+          setGameState(prev => ({
+            ...prev,
+            isConnected: false,
+          }));
+        }
       };
 
       wsRef.current.onerror = (error) => {
@@ -102,13 +107,29 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setGameState(initialGameState);
   };
 
+  const reconnectWithTokenRefresh = async (gameId?: string) => {
+    try {
+      console.log('Attempting to refresh token and reconnect...');
+      const success = await refreshToken();
+      if (success) {
+        console.log('Token refreshed, reconnecting...');
+        setTimeout(() => connect(gameId), 500);
+      } else {
+        console.log('Token refresh failed, redirecting to login');
+        navigate('/login');
+      }
+    } catch (err) {
+      console.error('Token refresh error:', err);
+      navigate('/login');
+    }
+  };
+
   const handleMessage = (message: WSMessage) => {
     switch (message.type) {
       case 'playerInfo':
         const playerInfo: PlayerInfoData = message.data;
         console.log('Received playerInfo:', playerInfo);
         
-        // Redirect to game page if not already there
         const currentPath = window.location.pathname;
         if (!currentPath.includes(`/game/${playerInfo.gameId}`)) {
           navigate(`/game/${playerInfo.gameId}`);
@@ -295,6 +316,24 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       disconnect();
     };
   }, []);
+
+  useEffect(() => {
+    if (!gameState.isConnected) return;
+
+    const refreshInterval = setInterval(async () => {
+      try {
+        console.log('Periodic token refresh for game connection...');
+        await refreshToken();
+      } catch (err) {
+        console.error('Periodic token refresh failed:', err);
+        if (gameState.gameId) {
+          reconnectWithTokenRefresh(gameState.gameId);
+        }
+      }
+    }, 14 * 60 * 1000);
+
+    return () => clearInterval(refreshInterval);
+  }, [gameState.isConnected, gameState.gameId]);
 
   const value: GameContextType = {
     gameState,

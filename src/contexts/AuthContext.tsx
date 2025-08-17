@@ -7,6 +7,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshToken: () => Promise<boolean>;
   loading: boolean;
   error: string | null;
 }
@@ -15,25 +16,61 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const API_BASE_URL = 'http://localhost:3000';
 
-// Configure axios to include cookies
 axios.defaults.withCredentials = true;
+
+axios.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      
+      try {
+        const response = await axios.post(`${API_BASE_URL}/refresh`);
+        if (response.status === 200) {
+          return axios(originalRequest);
+        }
+      } catch (refreshError) {
+        console.error('Token refresh failed:', refreshError);
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      }
+    }
+    
+    return Promise.reject(error);
+  }
+);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Check if user is authenticated on mount
   useEffect(() => {
     checkAuth();
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const refreshInterval = setInterval(async () => {
+      try {
+        await refreshToken();
+        console.log('Token refreshed proactively');
+      } catch (err) {
+        console.error('Proactive token refresh failed:', err);
+      }
+    }, 14 * 60 * 1000);
+
+    return () => clearInterval(refreshInterval);
+  }, [user]);
 
   const checkAuth = async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/me`);
       setUser(response.data.user);
     } catch (err) {
-      // User not authenticated, which is fine
       setUser(null);
     } finally {
       setLoading(false);
@@ -76,13 +113,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const refreshToken = async (): Promise<boolean> => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/refresh`);
+      return true;
+    } catch (err) {
+      console.error('Token refresh failed:', err);
+      setUser(null);
+      return false;
+    }
+  };
+
   const logout = async () => {
     try {
       await axios.post(`${API_BASE_URL}/logout`);
       setUser(null);
     } catch (err) {
       console.error('Logout error:', err);
-      // Still clear user on frontend even if backend call fails
       setUser(null);
     }
   };
@@ -92,6 +139,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     login,
     signup,
     logout,
+    refreshToken,
     loading,
     error,
   };
