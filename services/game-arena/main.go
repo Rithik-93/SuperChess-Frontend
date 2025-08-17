@@ -9,10 +9,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/notnil/chess"
-	"github.com/golang-jwt/jwt/v5"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -44,8 +44,6 @@ type GameModel struct {
 
 var waitingPlayers []*Player
 var waitingMutex sync.Mutex
-
-
 
 
 func wsHandler(w http.ResponseWriter, r *http.Request) {

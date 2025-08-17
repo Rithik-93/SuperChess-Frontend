@@ -37,6 +37,7 @@ func main() {
 	router.POST("/signup", controllers.UserSignup)
 	router.POST("/login", controllers.UserLogin)
 	router.POST("/logout", controllers.UserLogout)
+	router.POST("/refresh", controllers.RefreshToken)
     router.GET("/me", controllers.CurrentUser)
 
 	// OAuth

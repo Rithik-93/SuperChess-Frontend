@@ -3,6 +3,7 @@ package controllers
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/Rithik-93/superchess/services/api-gateway/initializers"
 	"github.com/Rithik-93/superchess/services/api-gateway/models"
@@ -75,6 +76,7 @@ func UserSignup(c *gin.Context) {
 	}
 
 	c.SetCookie("accessToken", accessToken, 3600, "/", "", false, true)
+	c.SetCookie("refreshToken", refreshToken, 2592000, "/", "", false, true)
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "User created successfully",
 		"user": gin.H{
@@ -131,6 +133,7 @@ func UserLogin(c *gin.Context) {
     }
 
     c.SetCookie("accessToken", accessToken, 3600, "/", "", false, true)
+    c.SetCookie("refreshToken", refreshToken, 2592000, "/", "", false, true) // 30 days
     c.JSON(http.StatusOK, gin.H{
         "message": "Login successful",
         "user": gin.H{
@@ -141,12 +144,94 @@ func UserLogin(c *gin.Context) {
 }
 
 func UserLogout(c *gin.Context) {
-    // Clear the access token cookie
+    // Clear both access and refresh token cookies
     c.SetCookie("accessToken", "", -1, "/", "", false, true)
+    c.SetCookie("refreshToken", "", -1, "/", "", false, true)
     c.JSON(http.StatusOK, gin.H{"message": "Logout successful"})
 }
 
-// CurrentUser returns the user derived from the accessToken cookie
+func RefreshToken(c *gin.Context) {
+    refreshTokenString := c.GetHeader("Authorization")
+    if refreshTokenString == "" {
+        if cookie, err := c.Cookie("refreshToken"); err == nil {
+            refreshTokenString = cookie
+        }
+    }
+    
+    if refreshTokenString == "" {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "missing refresh token"})
+        return
+    }
+    
+    if len(refreshTokenString) > 7 && refreshTokenString[:7] == "Bearer " {
+        refreshTokenString = refreshTokenString[7:]
+    }
+    
+    refreshSecret := env.GetString("JWT_REFRESH_SECRET", "lalalalalala")
+    token, err := jwt.Parse(refreshTokenString, func(t *jwt.Token) (interface{}, error) {
+        return []byte(refreshSecret), nil
+    })
+    
+    if err != nil || !token.Valid {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid refresh token"})
+        return
+    }
+    
+    claims, ok := token.Claims.(jwt.MapClaims)
+    if !ok {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token claims"})
+        return
+    }
+    
+    if claims["type"] != "refresh" {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token type"})
+        return
+    }
+    
+    var userID uint
+    switch v := claims["sub"].(type) {
+    case float64:
+        userID = uint(v)
+    case string:
+        if parsed, convErr := strconv.Atoi(v); convErr == nil {
+            userID = uint(parsed)
+        }
+    }
+    if userID == 0 {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid subject claim"})
+        return
+    }
+    
+    var user models.User
+    if err := initializers.DB.First(&user, userID).Error; err != nil {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
+        return
+    }
+    
+    if user.RefreshToken != refreshTokenString {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "refresh token mismatch"})
+        return
+    }
+    
+    if time.Now().After(user.RefreshTokenExpiry) {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "refresh token expired"})
+        return
+    }
+    
+    accessToken, _, err := utils.IssueAccessToken(user, "email")
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to issue access token"})
+        return
+    }
+    
+    c.SetCookie("accessToken", accessToken, 3600, "/", "", false, true)
+    
+    c.JSON(http.StatusOK, gin.H{
+        "message": "Token refreshed successfully",
+        "accessToken": accessToken,
+    })
+}
+
 func CurrentUser(c *gin.Context) {
     tokenString, err := c.Cookie("accessToken")
     if err != nil || tokenString == "" {
