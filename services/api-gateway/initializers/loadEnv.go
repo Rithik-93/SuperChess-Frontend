@@ -13,7 +13,7 @@ func LoadEnv() {
 	}
 
 	if os.Getenv("PORT") == "" {
-		os.Setenv("PORT", "3001")
+		os.Setenv("PORT", "3000")
 	}
 	if os.Getenv("JWT_ACCESS_SECRET") == "" {
 		os.Setenv("JWT_ACCESS_SECRET", "lalala")

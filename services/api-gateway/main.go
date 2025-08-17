@@ -52,5 +52,5 @@ func main() {
 		protected.GET("/games/:gameId", controllers.GetGame)
 	}
 
-	router.Run(":3001")
+	router.Run(":3000")
 }
