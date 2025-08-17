@@ -4,6 +4,7 @@ import (
 	"github.com/Rithik-93/superchess/services/api-gateway/auth"
 	"github.com/Rithik-93/superchess/services/api-gateway/controllers"
 	"github.com/Rithik-93/superchess/services/api-gateway/initializers"
+	"github.com/Rithik-93/superchess/services/api-gateway/middleware"
 
 	// "github.com/Rithik-93/superchess/shared/env"
 	"github.com/gin-contrib/cors"
@@ -41,6 +42,14 @@ func main() {
 	// OAuth
 	router.GET("/auth/:provider", auth.BeginAuth)
 	router.GET("/auth/:provider/callback", auth.AuthController)
+
+	protected := router.Group("/")
+	protected.Use(middleware.RequireAuth)
+	{
+		protected.POST("/games", controllers.CreateGame)
+		protected.POST("/games/join", controllers.JoinGame)
+		protected.GET("/games/:gameId", controllers.GetGame)
+	}
 
 	router.Run(":3000")
 }

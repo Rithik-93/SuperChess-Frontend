@@ -31,6 +31,7 @@ const (
 	MsgTypeError    = "error"
 	MsgTypePlayerInfo = "playerInfo"
 	MsgTypeGameCreated = "gameCreated"
+	MsgTypeReconnect = "reconnect"
 )
 
 type Message struct {
@@ -79,13 +80,13 @@ type ErrorData struct {
 }
 
 type PlayerInfoData struct {
-	PlayerID string `json:"playerId"`
+	PlayerID uint   `json:"playerId"`
 	Color    string `json:"color"`
 	GameID   string `json:"gameId"`
 }
 
 type Player struct {
-	ID    string
+	ID    uint
 	Name  string
 	Conn  *websocket.Conn
 	Color Color

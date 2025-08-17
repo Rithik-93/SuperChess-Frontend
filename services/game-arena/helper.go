@@ -32,7 +32,7 @@ func (g *Game) getCurrentTurn() string {
 	return "black"
 }
 
-func (g *Game) isPlayerTurn(playerID string) bool {
+func (g *Game) isPlayerTurn(playerID uint) bool {
 	currentTurn := g.getCurrentTurn()
 	if currentTurn == "white" && g.Player1 != nil && g.Player1.ID == playerID {
 		return true
@@ -44,8 +44,6 @@ func (g *Game) isPlayerTurn(playerID string) bool {
 }
 
 func (g *Game) isPositionInCheck() bool {
-	// Simple check detection: if the position status is related to check
-	// For now, we'll check if any of the recent moves had a Check tag
 	moves := g.ChessGame.Moves()
 	if len(moves) > 0 {
 		lastMove := moves[len(moves)-1]
@@ -90,6 +88,43 @@ func (g *Game) sendStateToPlayers() {
 	if g.Player2 != nil && g.Player2.Conn != nil {
 		g.Player2.Conn.WriteMessage(websocket.TextMessage, msgBytes)
 	}
+}
+
+func (g *Game) sendStateToPlayer(player *Player) {
+	if player == nil || player.Conn == nil {
+		return
+	}
+
+	stateData := GameStateData{
+		GameID:   g.ID,
+		FEN:      g.ChessGame.FEN(),
+		Board:    g.getBoardArray(),
+		Turn:     g.getCurrentTurn(),
+		Moves:    convertMovesToStrings(g.ChessGame.Moves()),
+		InCheck:  g.isPositionInCheck(),
+		GameOver: g.ChessGame.Outcome() != chess.NoOutcome,
+	}
+
+	if g.ChessGame.Outcome() != chess.NoOutcome {
+		stateData.GameOver = true
+		switch g.ChessGame.Outcome() {
+		case chess.WhiteWon:
+			stateData.Winner = "white"
+			stateData.Reason = g.ChessGame.Method().String()
+		case chess.BlackWon:
+			stateData.Winner = "black"
+			stateData.Reason = g.ChessGame.Method().String()
+		case chess.Draw:
+			stateData.Reason = g.ChessGame.Method().String()
+		}
+	}
+
+	msg := Message{Type: MsgTypeState}
+	data, _ := json.Marshal(stateData)
+	msg.Data = data
+	msgBytes, _ := json.Marshal(msg)
+
+	player.Conn.WriteMessage(websocket.TextMessage, msgBytes)
 }
 
 func (g *Game) sendErrorToPlayer(player *Player, errorMsg string) {
@@ -163,3 +198,4 @@ func sendErrorToPlayer(player *Player, errorMsg string) {
 
 	player.Conn.WriteMessage(websocket.TextMessage, msgBytes)
 }
+

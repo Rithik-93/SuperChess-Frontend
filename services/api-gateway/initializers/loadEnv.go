@@ -8,16 +8,17 @@ import (
 )
 
 func LoadEnv() {
-	// Load environment variables from .env file
-	// if err := godotenv.Load(); err != nil {
-	// 	log.Fatalf("Error loading .env file")
-	// }
 	if err := godotenv.Load(); err != nil {
-		log.Fatal("Error loading .env file")
+		log.Printf("Warning: .env file not found, using default values: %v", err)
 	}
 
-	// Set default values for environment variables if not set
 	if os.Getenv("PORT") == "" {
-		os.Setenv("PORT", "3030")
+		os.Setenv("PORT", "3001")
+	}
+	if os.Getenv("JWT_ACCESS_SECRET") == "" {
+		os.Setenv("JWT_ACCESS_SECRET", "lalala")
+	}
+	if os.Getenv("JWT_REFRESH_SECRET") == "" {
+		os.Setenv("JWT_REFRESH_SECRET", "lalala-refresh")
 	}
 }
