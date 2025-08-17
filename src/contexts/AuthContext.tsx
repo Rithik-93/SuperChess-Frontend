@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import axios from 'axios';
 import type { User, AuthResponse } from '../types';
+import { API_BASE_URL } from '../configs/config';
 
 interface AuthContextType {
   user: User | null;
@@ -13,8 +14,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const API_BASE_URL = 'http://localhost:3000';
 
 axios.defaults.withCredentials = true;
 

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Crown, Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { API_BASE_URL } from '../configs/config';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -143,7 +144,7 @@ const LoginPage: React.FC = () => {
           {/* Google OAuth */}
           <button
             type="button"
-            onClick={() => window.location.href = 'http://localhost:3000/auth/google'}
+            onClick={() => window.location.href = `${API_BASE_URL}/auth/google`}
             disabled={loading}
             className="w-full bg-white/10 border border-white/20 text-white py-3 px-4 rounded-xl font-medium hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/30 transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-3"
           >

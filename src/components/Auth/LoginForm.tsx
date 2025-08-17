@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { API_BASE_URL } from '../../configs/config';
 
 interface LoginFormProps {
   onSwitchToSignup: () => void;
@@ -67,7 +68,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup }) => {
       
       <button 
         type="button" 
-        onClick={() => window.location.href = 'http://localhost:3000/auth/google'}
+        onClick={() => window.location.href = `${API_BASE_URL}/auth/google`}
         disabled={loading}
         className="google-oauth-button"
       >
