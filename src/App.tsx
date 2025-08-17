@@ -71,8 +71,17 @@ const AppContent: React.FC = () => {
           </ProtectedRoute>
         } 
       />
+      <Route 
+        path="/game/:gameId" 
+        element={
+          <ProtectedRoute>
+            <GameProvider>
+              <GameArenaPage />
+            </GameProvider>
+          </ProtectedRoute>
+        } 
+      />
       
-      {/* Fallback Route */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

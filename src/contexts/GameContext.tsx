@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { GameState, WSMessage, JoinData, MoveData, GameStateData, PlayerInfoData, ErrorData, CreateGameData, JoinInviteData, GameCreatedData } from '../types';
 
 interface GameContextType {
   gameState: GameState;
-  connect: () => void;
+  connect: (gameId?: string) => void;
   disconnect: () => void;
   joinGame: () => void;
   createGame: () => void;
@@ -35,17 +36,22 @@ const initialGameState: GameState = {
 export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
   const wsRef = useRef<WebSocket | null>(null);
+  const navigate = useNavigate();
 
-  const connect = () => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      return;
+  const connect = (gameId?: string) => {
+    // Always disconnect existing connection first
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
     }
 
     try {
-      wsRef.current = new WebSocket(WS_URL);
+      // WebSocket connection - include gameId if reconnecting to specific game
+      const wsUrl = gameId ? `${WS_URL}?gameId=${gameId}` : WS_URL;
+      wsRef.current = new WebSocket(wsUrl);
 
       wsRef.current.onopen = () => {
-        console.log('WebSocket connected');
+        console.log('WebSocket connected' + (gameId ? ` to game: ${gameId}` : ''));
         setGameState(prev => ({
           ...prev,
           isConnected: true,
@@ -100,15 +106,21 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     switch (message.type) {
       case 'playerInfo':
         const playerInfo: PlayerInfoData = message.data;
+        console.log('Received playerInfo:', playerInfo);
+        
+        // Redirect to game page if not already there
+        const currentPath = window.location.pathname;
+        if (!currentPath.includes(`/game/${playerInfo.gameId}`)) {
+          navigate(`/game/${playerInfo.gameId}`);
+        }
+        
         setGameState(prev => ({
           ...prev,
           gameId: playerInfo.gameId,
-          playerId: playerInfo.playerId,
+          playerId: playerInfo.playerId.toString(),
           playerColor: playerInfo.color,
           isWaitingForMatch: false,
-          // Only set isWaitingForPlayer to false if we weren't already waiting for a player
-          // (this handles the case where we created a game and are still waiting)
-          isWaitingForPlayer: prev.createdGameId ? prev.isWaitingForPlayer : false,
+          isWaitingForPlayer: false,
         }));
         break;
 
@@ -135,7 +147,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           winner: gameStateData.winner,
           reason: gameStateData.reason,
           isWaitingForPlayer: false,
-          createdGameId: null, // Clear created game ID when game starts
+          createdGameId: null,
         }));
         break;
 
@@ -269,6 +281,16 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   useEffect(() => {
+    const currentPath = window.location.pathname;
+    const gameIdMatch = currentPath.match(/\/game\/(.+)/);
+    
+    if (gameIdMatch) {
+      const gameId = gameIdMatch[1];
+      if (!gameState.isConnected) {
+        setTimeout(() => connect(gameId), 100);
+      }
+    }
+    
     return () => {
       disconnect();
     };
