@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Crown, Eye, EyeOff, ArrowLeft, Check, X } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, Check, X } from 'lucide-react';
 import { API_BASE_URL } from '../configs/config';
 
 const SignupPage: React.FC = () => {
@@ -43,7 +43,7 @@ const SignupPage: React.FC = () => {
 
     try {
       await signup(email, password);
-      navigate('/game');
+      navigate('/home');
     } catch (err) {
       // Error is handled by AuthContext
     }
@@ -52,11 +52,11 @@ const SignupPage: React.FC = () => {
   const displayError = localError || error;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-black flex items-center justify-center p-6">
       {/* Background decorations */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-yellow-400/10 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-400/10 rounded-full blur-3xl"></div>
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-emerald-400/10 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-emerald-400/5 rounded-full blur-3xl"></div>
       </div>
 
       <div className="relative z-10 w-full max-w-md">
@@ -73,11 +73,10 @@ const SignupPage: React.FC = () => {
         <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8 shadow-2xl">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="flex items-center justify-center space-x-2 mb-4">
-              <Crown className="w-8 h-8 text-yellow-400" />
-              <span className="text-2xl font-bold text-white">SuperChess</span>
-            </div>
-            <h1 className="text-3xl font-bold text-white mb-2">Join SuperChess</h1>
+            <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 to-emerald-600 bg-clip-text text-transparent mb-4">
+              ChessMaster
+            </h1>
+            <h2 className="text-2xl font-semibold text-zinc-100 mb-2">Join ChessMaster</h2>
             <p className="text-white/70">Create your account and start your chess mastery journey</p>
           </div>
 

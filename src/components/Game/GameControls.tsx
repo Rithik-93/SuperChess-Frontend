@@ -1,137 +1,135 @@
 import React, { useState } from 'react';
 import { useGame } from '../../contexts/GameContext';
-import JoinGameModal from './JoinGameModal';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
+import { Input } from '../ui/input';
 
 const GameControls: React.FC = () => {
-  const { gameState, connect, disconnect, joinGame, createGame, joinInvite, resetGame } = useGame();
-  const [showJoinModal, setShowJoinModal] = useState(false);
-
-  const handleConnect = () => {
-    if (gameState.isConnected) {
-      disconnect();
-    } else {
-      connect();
-    }
-  };
+  const { gameState, joinInvite, resetGame } = useGame();
+  const [joinCode, setJoinCode] = useState('');
+  const navigate = useNavigate();
 
   const handleJoinGame = () => {
-    if (!gameState.isConnected) {
-      connect();
-      // Wait a bit for connection then join
-      setTimeout(() => joinGame(), 500);
-    } else {
-      joinGame();
-    }
+    if (!gameState.isConnected) return;
+    navigate('/random-match');
   };
 
   const handleCreateGame = () => {
-    if (!gameState.isConnected) {
-      connect();
-      setTimeout(() => createGame(), 500);
-    } else {
-      createGame();
+    if (!gameState.isConnected) return;
+    navigate('/create-game');
+  };
+
+  const handleJoinWithCode = () => {
+    if (joinCode.trim() && gameState.isConnected) {
+      joinInvite(joinCode.trim());
+      setJoinCode('');
     }
   };
 
-  const handleJoinByCode = () => {
-    setShowJoinModal(true);
+  const handleNewGame = () => {
+    resetGame();
   };
 
-  const handleJoinWithGameId = (gameId: string) => {
-    setShowJoinModal(false);
-    if (!gameState.isConnected) {
-      connect();
-      setTimeout(() => joinInvite(gameId), 500);
-    } else {
-      joinInvite(gameId);
-    }
-  };
+  // If no active game, show game selection
+  if (!gameState.gameId && !gameState.isWaitingForMatch && !gameState.isWaitingForPlayer) {
+    return (
+      <div className="space-y-4">
+        <Button 
+          onClick={handleJoinGame} 
+          className="w-full"
+          disabled={!gameState.isConnected}
+        >
+          {gameState.isConnected ? 'Find Random Match' : 'Connecting...'}
+        </Button>
+        
+        <Button 
+          onClick={handleCreateGame} 
+          variant="secondary" 
+          className="w-full"
+          disabled={!gameState.isConnected}
+        >
+          Create Private Game
+        </Button>
 
-  const getJoinButtonText = () => {
-    if (gameState.isWaitingForMatch) return 'Waiting for opponent...';
-    if (gameState.gameId) return 'Game in progress';
-    if (!gameState.isConnected) return 'Connect & Join Game';
-    return 'Join Random Game';
-  };
+        <div className="pt-4 border-t border-zinc-800">
+          <div className="space-y-2">
+            <label className="text-sm text-zinc-400">Join with code:</label>
+            <div className="flex space-x-2">
+              <Input
+                type="text"
+                placeholder="Enter game code"
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value)}
+                className="flex-1"
+              />
+              <Button 
+                onClick={handleJoinWithCode}
+                disabled={!joinCode.trim() || !gameState.isConnected}
+                size="sm"
+              >
+                Join
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const getCreateButtonText = () => {
-    if (!gameState.isConnected) return 'Connect & Create Game';
-    return 'Create Private Game';
-  };
+  // If waiting for match or player
+  if (gameState.isWaitingForMatch || gameState.isWaitingForPlayer) {
+    return (
+      <div className="space-y-4 text-center">
+        <div className="p-4 bg-emerald-400/10 border border-emerald-400/20 rounded-md">
+          <div className="animate-spin w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full mx-auto mb-2"></div>
+          <p className="text-emerald-400 text-sm">
+            {gameState.isWaitingForMatch ? 'Finding opponent...' : 'Waiting for player to join...'}
+          </p>
+        </div>
+        
+        <Button 
+          onClick={handleNewGame} 
+          variant="ghost" 
+          className="w-full"
+        >
+          Cancel
+        </Button>
+      </div>
+    );
+  }
 
-  const isJoinDisabled = () => {
-    return gameState.isWaitingForMatch || gameState.isWaitingForPlayer || (gameState.gameId !== null);
-  };
-
-  const isCreateDisabled = () => {
-    return gameState.isWaitingForMatch || gameState.isWaitingForPlayer || (gameState.gameId !== null);
-  };
-
-  const isJoinByCodeDisabled = () => {
-    return gameState.isWaitingForMatch || gameState.isWaitingForPlayer || (gameState.gameId !== null);
-  };
-
+  // If game is active or finished
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Badge variant={gameState.isConnected ? 'success' : 'destructive'}>
-          <span className="inline-flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${gameState.isConnected ? 'bg-emerald-400' : 'bg-red-400'}`}></span>
-            {gameState.isConnected ? 'Connected' : 'Disconnected'}
-          </span>
-        </Badge>
-        {gameState.isWaitingForMatch && (
-          <Badge variant="warning">Matching...</Badge>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 gap-2">
-        <Button onClick={handleConnect} variant={gameState.isConnected ? 'destructive' : 'default'}>
-          {gameState.isConnected ? 'Disconnect' : 'Connect'}
-        </Button>
-
-        <Button onClick={handleJoinGame} disabled={isJoinDisabled()}>
-          {getJoinButtonText()}
-        </Button>
-
-        <Button onClick={handleCreateGame} disabled={isCreateDisabled()} variant="secondary">
-          {getCreateButtonText()}
-        </Button>
-
-        <Button onClick={handleJoinByCode} disabled={isJoinByCodeDisabled()} variant="outline">
-          Join Specific Game
-        </Button>
-      </div>
-
-      {(gameState.gameOver || gameState.gameId) && (
-        <Button onClick={resetGame} variant="secondary">
-          New Game
-        </Button>
+      {!gameState.gameOver && (
+        <>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="w-full"
+            disabled
+          >
+            Offer Draw
+          </Button>
+          
+          <Button 
+            variant="destructive" 
+            size="sm" 
+            className="w-full"
+            disabled
+          >
+            Resign
+          </Button>
+        </>
       )}
-
-      {gameState.error && (
-        <div className="rounded-xl border border-red-400/30 bg-red-400/15 text-red-200 p-3 text-sm">
-          <strong className="mr-1">Error:</strong> {gameState.error}
-        </div>
-      )}
-
-      {gameState.isWaitingForMatch && (
-        <div className="rounded-xl border border-white/15 bg-white/10 p-4 text-white/80 text-sm text-center">
-          <div className="mx-auto mb-2 w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          Looking for an opponent...
-        </div>
-      )}
-
-      {gameState.isWaitingForPlayer && (
-        <div className="rounded-xl border border-white/15 bg-white/10 p-4 text-white/80 text-sm text-center">
-          <div className="mx-auto mb-2 w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          Waiting for your friend to join...
-        </div>
-      )}
-
-      <JoinGameModal isOpen={showJoinModal} onClose={() => setShowJoinModal(false)} onJoin={handleJoinWithGameId} />
+      
+      <Button 
+        onClick={handleNewGame} 
+        variant="secondary" 
+        className="w-full"
+      >
+        {gameState.gameOver ? 'New Game' : 'Leave Game'}
+      </Button>
     </div>
   );
 };

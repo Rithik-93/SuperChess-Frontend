@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import type { GameState, WSMessage, JoinData, MoveData, GameStateData, PlayerInfoData, ErrorData, CreateGameData, JoinInviteData, GameCreatedData } from '../types';
@@ -40,7 +40,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const navigate = useNavigate();
   const { refreshToken } = useAuth();
 
-  const connect = (gameId?: string) => {
+  const connect = useCallback((gameId?: string) => {
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
@@ -71,13 +71,14 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       wsRef.current.onclose = (event) => {
         console.log('WebSocket disconnected:', event.code, event.reason);
         
+        setGameState(prev => ({
+          ...prev,
+          isConnected: false,
+        }));
+
+        // Only attempt reconnection for specific error codes and if not manually disconnected
         if (event.code === 1008 || event.code === 1011) {
           reconnectWithTokenRefresh(gameId);
-        } else {
-          setGameState(prev => ({
-            ...prev,
-            isConnected: false,
-          }));
         }
       };
 
@@ -97,15 +98,15 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isConnected: false,
       }));
     }
-  };
+  }, []);
 
-  const disconnect = () => {
+  const disconnect = useCallback(() => {
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
     }
     setGameState(initialGameState);
-  };
+  }, []);
 
   const reconnectWithTokenRefresh = async (gameId?: string) => {
     try {
@@ -294,12 +295,12 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
   };
 
-  const resetGame = () => {
+  const resetGame = useCallback(() => {
     setGameState(prev => ({
       ...initialGameState,
       isConnected: prev.isConnected,
     }));
-  };
+  }, []);
 
   useEffect(() => {
     const currentPath = window.location.pathname;
@@ -307,9 +308,11 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     if (gameIdMatch) {
       const gameId = gameIdMatch[1];
-      if (!gameState.isConnected) {
+      if (!gameState.isConnected && !wsRef.current) {
         setTimeout(() => connect(gameId), 100);
       }
+    } else if (currentPath === '/game' && !gameState.isConnected && !wsRef.current) {
+      setTimeout(() => connect(), 100);
     }
     
     return () => {

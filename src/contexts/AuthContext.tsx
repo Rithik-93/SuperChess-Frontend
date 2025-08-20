@@ -54,15 +54,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               throw new Error('No refresh token found');
             }
             
-            const response = await axios.post(`${API_BASE_URL}/refresh`, {}, {
+            await axios.post(`${API_BASE_URL}/refresh`, {}, {
               headers: {
                 'Authorization': `Bearer ${refreshToken}`
               }
             });
             
-            if (response.status === 200) {
-              return axios(originalRequest);
-            }
+            return axios(originalRequest);
           } catch (refreshError) {
             console.error('Token refresh failed:', refreshError);
             setUser(null);
@@ -161,7 +159,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       console.log('Attempting to refresh token with:', refreshToken.substring(0, 20) + '...');
       
-      const response = await axios.post(`${API_BASE_URL}/refresh`, {}, {
+      await axios.post(`${API_BASE_URL}/refresh`, {}, {
         headers: {
           'Authorization': `Bearer ${refreshToken}`
         }

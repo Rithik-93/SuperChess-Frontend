@@ -1,128 +1,374 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Link } from 'react-router-dom';
+import { useGame } from '../contexts/GameContext';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import ChessBoard from '../components/Game/ChessBoard';
-import GameInfo from '../components/Game/GameInfo';
-import GameControls from '../components/Game/GameControls';
-import { Crown, LogOut, Home, Settings, User } from 'lucide-react';
+import MoveHistory from '../components/Game/MoveHistory';
+import PlayerProfile from '../components/chess/PlayerProfile';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 
-const GameArenaPage: React.FC = () => {
-  const { user, logout } = useAuth();
+
+
+// Inline GameInfo Component
+const GameInfo: React.FC = () => {
+  const { gameState } = useGame();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-[#1a0f2e] to-slate-950">
-      {/* Background decorations */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-yellow-400/10 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-400/10 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl"></div>
+    <div className="space-y-4">
+      {/* Game Status */}
+      <div className="flex items-center justify-between">
+        <span className="text-zinc-400">Status:</span>
+        <Badge variant={gameState.gameOver ? "destructive" : "default"}>
+          {gameState.gameOver ? 'Game Over' : 
+           gameState.isWaitingForPlayer ? 'Waiting for opponent' :
+           gameState.isWaitingForMatch ? 'Finding match...' :
+           gameState.gameId ? 'Playing' : 'Disconnected'}
+        </Badge>
       </div>
 
-      {/* Navigation Header */}
-      <nav className="relative z-50 border-b border-white/10 bg-white/5 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            {/* Logo */}
-            <div className="flex items-center space-x-2">
-              <Crown className="w-8 h-8 text-yellow-400" />
-              <span className="text-2xl font-bold text-white">SuperChess</span>
-              <span className="text-sm text-white/60 bg-white/10 px-2 py-1 rounded-full">Arena</span>
-            </div>
+      {/* Player Color */}
+      {gameState.playerColor && (
+        <div className="flex items-center justify-between">
+          <span className="text-zinc-400">Your Color:</span>
+          <div className="flex items-center space-x-2">
+            <span className="text-2xl">{gameState.playerColor === 'white' ? '♔' : '♚'}</span>
+            <span className="text-zinc-200 capitalize">{gameState.playerColor}</span>
+          </div>
+        </div>
+      )}
 
-            {/* User Menu */}
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-2">
-                <User className="w-4 h-4 text-white/70" />
-                <span className="text-white/90 text-sm font-medium">
-                  {user?.email?.split('@')[0] || 'Player'}
-                </span>
-              </div>
-              
-              <Link
-                to="/"
-                className="flex items-center space-x-2 text-white/70 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-white/10"
+      {/* Current Turn */}
+      {gameState.gameId && !gameState.gameOver && (
+        <div className="flex items-center justify-between">
+          <span className="text-zinc-400">Turn:</span>
+          <div className="flex items-center space-x-2">
+            <span className="text-xl">{gameState.turn === 'white' ? '♔' : '♚'}</span>
+            <span className="text-zinc-200 capitalize">{gameState.turn}</span>
+            {gameState.turn === gameState.playerColor && (
+              <Badge variant="default" className="text-xs">Your turn</Badge>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Game ID */}
+      {gameState.gameId && (
+        <div className="flex items-center justify-between">
+          <span className="text-zinc-400">Game ID:</span>
+          <span className="text-zinc-200 font-mono text-sm">{gameState.gameId.substring(0, 8)}...</span>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Inline GameControls Component
+const GameControls: React.FC = () => {
+  const { gameState, joinInvite, resetGame } = useGame();
+  const [joinCode, setJoinCode] = useState('');
+  const navigate = useNavigate();
+
+  const handleJoinGame = () => {
+    if (!gameState.isConnected) return;
+    navigate('/random-match');
+  };
+
+  const handleCreateGame = () => {
+    if (!gameState.isConnected) return;
+    navigate('/create-game');
+  };
+
+  const handleJoinWithCode = () => {
+    if (joinCode.trim() && gameState.isConnected) {
+      joinInvite(joinCode.trim());
+      setJoinCode('');
+    }
+  };
+
+  const handleNewGame = () => {
+    resetGame();
+  };
+
+  // If no active game, show game selection
+  if (!gameState.gameId && !gameState.isWaitingForMatch && !gameState.isWaitingForPlayer) {
+    return (
+      <div className="space-y-4">
+        <Button 
+          onClick={handleJoinGame} 
+          className="w-full"
+          disabled={!gameState.isConnected}
+        >
+          {gameState.isConnected ? 'Find Random Match' : 'Connecting...'}
+        </Button>
+        
+        <Button 
+          onClick={handleCreateGame} 
+          variant="secondary" 
+          className="w-full"
+          disabled={!gameState.isConnected}
+        >
+          Create Private Game
+        </Button>
+
+        <div className="pt-4 border-t border-zinc-800">
+          <div className="space-y-2">
+            <label className="text-sm text-zinc-400">Join with code:</label>
+            <div className="flex space-x-2">
+              <Input
+                type="text"
+                placeholder="Enter game code"
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value)}
+                className="flex-1"
+              />
+              <Button 
+                onClick={handleJoinWithCode}
+                disabled={!joinCode.trim() || !gameState.isConnected}
+                size="sm"
               >
-                <Home className="w-4 h-4" />
-                <span className="text-sm">Home</span>
-              </Link>
-              
-              <button
-                className="flex items-center space-x-2 text-white/70 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-white/10"
-              >
-                <Settings className="w-4 h-4" />
-                <span className="text-sm">Settings</span>
-              </button>
-              
-              <button
-                onClick={logout}
-                className="flex items-center space-x-2 text-white/70 hover:text-red-400 transition-colors px-3 py-2 rounded-lg hover:bg-red-500/10"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="text-sm">Logout</span>
-              </button>
+                Join
+              </Button>
             </div>
           </div>
         </div>
-      </nav>
+      </div>
+    );
+  }
 
-      {/* Main Game Area */}
-      <main className="relative z-10 max-w-7xl mx-auto px-6 py-8">
-        <div className="grid lg:grid-cols-3 gap-8 items-start">
-          {/* Chess Board Section */}
-          <div className="lg:col-span-2">
-            <Card className="p-0">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-white">Game Board</CardTitle>
-                <Badge variant="success" className="flex items-center space-x-2">
-                  <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-                  <span>Live</span>
-                </Badge>
+  // If waiting for match or player
+  if (gameState.isWaitingForMatch || gameState.isWaitingForPlayer) {
+    return (
+      <div className="space-y-4 text-center">
+        <div className="p-4 bg-emerald-400/10 border border-emerald-400/20 rounded-md">
+          <div className="animate-spin w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full mx-auto mb-2"></div>
+          <p className="text-emerald-400 text-sm">
+            {gameState.isWaitingForMatch ? 'Finding opponent...' : 'Waiting for player to join...'}
+          </p>
+        </div>
+        
+        <Button 
+          onClick={handleNewGame} 
+          variant="ghost" 
+          className="w-full"
+        >
+          Cancel
+        </Button>
+      </div>
+    );
+  }
+
+  // If game is active or finished
+  return (
+    <div className="space-y-4">
+      {!gameState.gameOver && (
+        <>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="w-full"
+            disabled
+          >
+            Offer Draw
+          </Button>
+          
+          <Button 
+            variant="destructive" 
+            size="sm" 
+            className="w-full"
+            disabled
+          >
+            Resign
+          </Button>
+        </>
+      )}
+      
+      <Button 
+        onClick={handleNewGame} 
+        variant="secondary" 
+        className="w-full"
+      >
+        {gameState.gameOver ? 'New Game' : 'Leave Game'}
+      </Button>
+    </div>
+  );
+};
+
+const GameArenaPage: React.FC = () => {
+  const { user, logout } = useAuth();
+  const { gameState, connect } = useGame();
+  const { gameId } = useParams();
+
+  React.useEffect(() => {
+    if (gameId && !gameState.isConnected) {
+      connect(gameId);
+    } else if (!gameId && !gameState.isConnected) {
+      connect();
+    }
+  }, [gameId, gameState.isConnected]);
+
+  const handleExitGame = () => {
+    logout();
+  };
+
+  // Mock opponent data - in real app this would come from game state
+  const opponent = {
+    name: gameState.gameId ? "ChessGrandmaster" : "Waiting...",
+    rating: 1456,
+    timeRemaining: "09:23"
+  };
+
+  const currentPlayer = {
+    name: user?.email?.split('@')[0] || "You",
+    rating: 1247,
+    timeRemaining: "10:45"
+  };
+
+  return (
+    <div className="w-full min-h-screen bg-black p-4">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <Link to="/home">
+            <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 to-emerald-600 bg-clip-text text-transparent">
+              ChessMaster
+            </h1>
+          </Link>
+
+          <div className="flex items-center gap-4">
+            {gameState.gameId && (
+              <div className="text-zinc-400 text-sm">
+                Game ID:{" "}
+                <span className="text-zinc-200 font-mono">
+                  {gameState.gameId.substring(0, 8)}...
+                </span>
+              </div>
+            )}
+            <Button variant="ghost" onClick={handleExitGame}>
+              Exit Game
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Left Sidebar - Opponent */}
+          <div className="lg:col-span-1 space-y-4">
+            <PlayerProfile
+              name={opponent.name}
+              rating={opponent.rating}
+              timeRemaining={gameState.gameId ? opponent.timeRemaining : undefined}
+              color={gameState.playerColor === 'white' ? 'black' : gameState.playerColor === 'black' ? 'white' : undefined}
+              isOnline={!!gameState.gameId}
+            />
+
+            {/* Game Info */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg font-medium text-zinc-100">
+                  Game Info
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center justify-center">
-                  <div className="w-full max-w-[640px] sm:max-w-[560px] md:max-w-[640px] aspect-square">
-                    <ChessBoard />
-                  </div>
-                </div>
+                <GameInfo />
+              </CardContent>
+            </Card>
+
+            {/* Move History */}
+            <Card>
+              <CardContent className="p-4">
+                <MoveHistory />
               </CardContent>
             </Card>
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Game Controls */}
+          {/* Center - Chess Board */}
+          <div className="lg:col-span-2 flex items-center justify-center">
+            <div className="text-center w-full">
+              {gameState.isWaitingForPlayer && (
+                <div className="mb-4">
+                  <div className="text-zinc-400 mb-2">
+                    Waiting for opponent...
+                  </div>
+                  <div className="animate-spin w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full mx-auto"></div>
+                </div>
+              )}
+              
+              <div className="w-full max-w-[600px] mx-auto aspect-square">
+                <ChessBoard />
+              </div>
+              
+              <div className="mt-4 text-zinc-400 text-sm">
+                {gameState.gameOver && "Game finished"}
+                {gameState.isWaitingForPlayer && "Waiting for opponent"}
+                {gameState.isWaitingForMatch && "Finding match..."}
+                {gameState.gameId && !gameState.gameOver && !gameState.isWaitingForPlayer && 
+                  (gameState.turn === gameState.playerColor ? "Your turn" : "Opponent's turn")}
+                {!gameState.gameId && !gameState.isWaitingForMatch && !gameState.isWaitingForPlayer && "Ready to play"}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Sidebar - Current Player */}
+          <div className="lg:col-span-1 space-y-4">
+            <PlayerProfile
+              name={currentPlayer.name}
+              rating={currentPlayer.rating}
+              timeRemaining={gameState.gameId ? currentPlayer.timeRemaining : undefined}
+              isCurrentPlayer={true}
+              color={gameState.playerColor as 'white' | 'black' | undefined}
+              isOnline={true}
+            />
+
+            {/* Game Actions */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-white">Game Controls</CardTitle>
+                <CardTitle className="text-lg font-medium text-zinc-100">
+                  Actions
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <GameControls />
               </CardContent>
             </Card>
 
-            {/* Game Info */}
+            {/* Chat - Placeholder */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-white">Game Info</CardTitle>
+                <CardTitle className="text-lg font-medium text-zinc-100">
+                  Chat
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <GameInfo />
+                <div className="space-y-2 text-sm max-h-32 overflow-y-auto mb-3">
+                  <div className="text-zinc-400">
+                    <span className="font-medium">System:</span>{" "}
+                    Welcome to ChessMaster!
+                  </div>
+                  {gameState.gameId && (
+                    <div className="text-zinc-400">
+                      <span className="font-medium">System:</span>{" "}
+                      Game started. Good luck!
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Type a message..."
+                    className="flex-1 px-2 py-1 text-xs bg-zinc-800 border border-zinc-700 rounded text-zinc-100 placeholder:text-zinc-500"
+                    disabled
+                  />
+                  <Button size="sm" className="px-3" disabled>
+                    Send
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>
         </div>
-      </main>
-
-      {/* Floating Action Buttons */}
-      <div className="fixed bottom-6 right-6 flex flex-col space-y-3">
-        <button className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black p-3 rounded-full shadow-2xl hover:from-yellow-300 hover:to-orange-400 transition-all duration-300 transform hover:scale-110">
-          <Crown className="w-6 h-6" />
-        </button>
       </div>
-
-      {/* Removed inline style in favor of Tailwind utilities */}
     </div>
   );
 };

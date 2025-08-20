@@ -1,201 +1,250 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Crown, Zap, Users, Trophy, ChevronRight, Sparkles } from 'lucide-react';
+import { useGame } from '../contexts/GameContext';
+import { Button } from '../components/ui/button';
+import { Card, CardContent } from '../components/ui/card';
+import { Input } from '../components/ui/input';
+import { Badge } from '../components/ui/badge';
 
 const HomePage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const { gameState, connect, joinGame, createGame, joinInvite } = useGame();
+  const [joinCode, setJoinCode] = useState('');
+  const navigate = useNavigate();
 
-  const features = [
-    {
-      icon: <Crown className="w-8 h-8" />,
-      title: "Master the Game",
-      description: "Experience chess like never before with our advanced AI-powered analysis and real-time coaching."
-    },
-    {
-      icon: <Zap className="w-8 h-8" />,
-      title: "Lightning Fast",
-      description: "Real-time multiplayer matches with zero lag. Challenge players worldwide instantly."
-    },
-    {
-      icon: <Users className="w-8 h-8" />,
-      title: "Global Community",
-      description: "Join millions of chess enthusiasts in our vibrant, competitive community."
-    },
-    {
-      icon: <Trophy className="w-8 h-8" />,
-      title: "Tournaments",
-      description: "Compete in daily tournaments and climb the global leaderboard."
+  // Connect on component mount if not connected
+  React.useEffect(() => {
+    if (!gameState.isConnected) {
+      connect();
     }
-  ];
+  }, [gameState.isConnected, connect]);
+
+  // Navigate to game when game is created/joined
+  React.useEffect(() => {
+    if (gameState.gameId) {
+      navigate(`/game/${gameState.gameId}`);
+    }
+  }, [gameState.gameId, navigate]);
+
+  const handleJoinRandomGame = () => {
+    if (!gameState.isConnected) {
+      connect();
+      // Wait a bit for connection then join
+      setTimeout(() => joinGame(), 500);
+    } else {
+      joinGame();
+    }
+  };
+
+  const handleCreateGame = () => {
+    if (!gameState.isConnected) {
+      connect();
+      setTimeout(() => createGame(), 500);
+    } else {
+      createGame();
+    }
+  };
+
+  const handleJoinWithCode = () => {
+    if (joinCode.trim()) {
+      if (!gameState.isConnected) {
+        connect();
+        setTimeout(() => joinInvite(joinCode.trim()), 500);
+      } else {
+        joinInvite(joinCode.trim());
+      }
+      setJoinCode('');
+    }
+  };
+
+  const getJoinButtonText = () => {
+    if (gameState.isWaitingForMatch) return 'Waiting for opponent...';
+    if (gameState.gameId) return 'Game in progress';
+    if (!gameState.isConnected) return 'Connect & Find Match';
+    return 'Find Match';
+  };
+
+  const getCreateButtonText = () => {
+    if (gameState.isWaitingForPlayer) return 'Waiting for player...';
+    if (gameState.gameId) return 'Game in progress';
+    if (!gameState.isConnected) return 'Connect & Create Game';
+    return 'Create Game';
+  };
+
+  const isJoinDisabled = () => {
+    return gameState.isWaitingForMatch || gameState.isWaitingForPlayer || (gameState.gameId !== null);
+  };
+
+  const isCreateDisabled = () => {
+    return gameState.isWaitingForMatch || gameState.isWaitingForPlayer || (gameState.gameId !== null);
+  };
+
+  const isJoinByCodeDisabled = () => {
+    return gameState.isWaitingForMatch || gameState.isWaitingForPlayer || (gameState.gameId !== null);
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      {/* Navigation */}
-      <nav className="relative z-50 px-6 py-6">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Crown className="w-8 h-8 text-yellow-400" />
-            <span className="text-2xl font-bold text-white">SuperChess</span>
-          </div>
-          
-          <div className="flex items-center space-x-6">
-            {user ? (
-              <>
-                <span className="text-white/80">Welcome, {user.email}</span>
-                <Link
-                  to="/game"
-                  className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-6 py-2 rounded-full font-semibold hover:from-yellow-300 hover:to-orange-400 transition-all duration-300 transform hover:scale-105"
-                >
-                  Play Now
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link
-                  to="/login"
-                  className="text-white/80 hover:text-white transition-colors"
-                >
-                  Sign In
-                </Link>
-                <Link
-                  to="/signup"
-                  className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-6 py-2 rounded-full font-semibold hover:from-yellow-300 hover:to-orange-400 transition-all duration-300 transform hover:scale-105"
-                >
-                  Get Started
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-      </nav>
-
-      {/* Hero Section */}
-      <section className="relative px-6 py-20 overflow-hidden">
-        {/* Background decorations */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-40 -right-40 w-80 h-80 bg-yellow-400/10 rounded-full blur-3xl"></div>
-          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-400/10 rounded-full blur-3xl"></div>
-        </div>
-        
-        <div className="max-w-7xl mx-auto relative z-10">
-          <div className="text-center space-y-8">
-            <div className="inline-flex items-center space-x-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-2 text-sm text-white/80">
-              <Sparkles className="w-4 h-4 text-yellow-400" />
-              <span>Experience the future of chess</span>
-            </div>
-            
-            <h1 className="text-6xl md:text-8xl font-bold text-white leading-tight">
-              Chess
-              <span className="block bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
-                Redefined
-              </span>
+    <div className="w-full min-h-screen bg-black p-4">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8 pt-8">
+          <Link to="/">
+            <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 to-emerald-600 bg-clip-text text-transparent">
+              ChessMaster
             </h1>
-            
-            <p className="text-xl md:text-2xl text-white/70 max-w-3xl mx-auto leading-relaxed">
-              Master the royal game with our premium platform featuring AI analysis, 
-              real-time multiplayer, and a global community of chess enthusiasts.
-            </p>
-            
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-8">
-              {user ? (
-                <Link
-                  to="/game"
-                  className="group bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-8 py-4 rounded-full font-bold text-lg hover:from-yellow-300 hover:to-orange-400 transition-all duration-300 transform hover:scale-105 flex items-center space-x-2"
-                >
-                  <span>Enter Game Arena</span>
-                  <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </Link>
-              ) : (
-                <>
-                  <Link
-                    to="/signup"
-                    className="group bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-8 py-4 rounded-full font-bold text-lg hover:from-yellow-300 hover:to-orange-400 transition-all duration-300 transform hover:scale-105 flex items-center space-x-2"
-                  >
-                    <span>Start Playing</span>
-                    <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </Link>
-                  <Link
-                    to="/login"
-                    className="border-2 border-white/30 text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-white/10 transition-all duration-300 backdrop-blur-sm"
-                  >
-                    Sign In
-                  </Link>
-                </>
-              )}
-            </div>
+          </Link>
+          <div className="flex items-center gap-4">
+            <Badge variant={gameState.isConnected ? 'default' : 'destructive'}>
+              <span className="inline-flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${gameState.isConnected ? 'bg-emerald-400' : 'bg-red-400'}`}></span>
+                {gameState.isConnected ? 'Connected' : 'Disconnected'}
+              </span>
+            </Badge>
+            <span className="text-zinc-400">Welcome, {user?.email?.split('@')[0] || 'Player'}</span>
+            <Button variant="ghost" onClick={logout}>
+              Logout
+            </Button>
           </div>
         </div>
-      </section>
 
-      {/* Features Section */}
-      <section className="px-6 py-20">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center space-y-4 mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-white">
-              Why Choose SuperChess?
-            </h2>
-            <p className="text-xl text-white/70 max-w-2xl mx-auto">
-              Discover what makes our platform the ultimate destination for chess players worldwide.
-            </p>
-          </div>
-          
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {features.map((feature, index) => (
-              <div
-                key={index}
-                className="group bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 hover:bg-white/10 transition-all duration-300 transform hover:-translate-y-2"
-              >
-                <div className="text-yellow-400 mb-6 group-hover:scale-110 transition-transform duration-300">
-                  {feature.icon}
-                </div>
-                <h3 className="text-xl font-bold text-white mb-4">
-                  {feature.title}
-                </h3>
-                <p className="text-white/70 leading-relaxed">
-                  {feature.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="px-6 py-20">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm border border-white/20 rounded-3xl p-12">
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              Ready to Elevate Your Game?
-            </h2>
-            <p className="text-xl text-white/70 mb-8 max-w-2xl mx-auto">
-              Join thousands of players who have already discovered the future of online chess.
-            </p>
-            {!user && (
-              <Link
-                to="/signup"
-                className="inline-flex items-center space-x-2 bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-8 py-4 rounded-full font-bold text-lg hover:from-yellow-300 hover:to-orange-400 transition-all duration-300 transform hover:scale-105"
-              >
-                <span>Join SuperChess</span>
-                <ChevronRight className="w-5 h-5" />
-              </Link>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t border-white/10 px-6 py-8">
-        <div className="max-w-7xl mx-auto text-center">
-          <div className="flex items-center justify-center space-x-2 mb-4">
-            <Crown className="w-6 h-6 text-yellow-400" />
-            <span className="text-xl font-bold text-white">SuperChess</span>
-          </div>
-          <p className="text-white/50">
-            © 2025 SuperChess. Elevating the game of kings.
+        {/* Game Options */}
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-zinc-100 mb-4">
+            Choose your game mode
+          </h2>
+          <p className="text-zinc-400 text-lg">
+            Select how you want to play chess today
           </p>
         </div>
-      </footer>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          {/* Join Random Game */}
+          <Card className="hover:bg-zinc-900/50 transition-colors cursor-pointer group">
+            <CardContent className="p-8 text-center">
+              <div className="text-6xl mb-4 group-hover:scale-110 transition-transform">⚡</div>
+              <h3 className="text-2xl font-bold text-zinc-100 mb-4">
+                Random Match
+              </h3>
+              <p className="text-zinc-400 mb-6">
+                Get matched with a player of similar skill level for a quick game
+              </p>
+              <Button 
+                size="lg" 
+                className="w-full"
+                onClick={handleJoinRandomGame}
+                disabled={isJoinDisabled()}
+              >
+                {getJoinButtonText()}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Create Game */}
+          <Card className="hover:bg-zinc-900/50 transition-colors cursor-pointer group">
+            <CardContent className="p-8 text-center">
+              <div className="text-6xl mb-4 group-hover:scale-110 transition-transform">🎯</div>
+              <h3 className="text-2xl font-bold text-zinc-100 mb-4">
+                Create Game
+              </h3>
+              <p className="text-zinc-400 mb-6">
+                Create a private game and invite your friends to join
+              </p>
+              <Button 
+                size="lg" 
+                className="w-full" 
+                variant="secondary"
+                onClick={handleCreateGame}
+                disabled={isCreateDisabled()}
+              >
+                {getCreateButtonText()}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Join Game */}
+          <Card className="hover:bg-zinc-900/50 transition-colors group">
+            <CardContent className="p-8 text-center">
+              <div className="text-6xl mb-4 group-hover:scale-110 transition-transform">🔗</div>
+              <h3 className="text-2xl font-bold text-zinc-100 mb-4">
+                Join Game
+              </h3>
+              <p className="text-zinc-400 mb-6">
+                Enter a game code to join a friend's private game
+              </p>
+              <div className="space-y-3">
+                <Input
+                  type="text"
+                  placeholder="Enter game code"
+                  value={joinCode}
+                  onChange={(e) => setJoinCode(e.target.value)}
+                  className="text-center"
+                />
+                <Button 
+                  size="lg" 
+                  className="w-full" 
+                  variant="outline"
+                  onClick={handleJoinWithCode}
+                  disabled={!joinCode.trim() || isJoinByCodeDisabled()}
+                >
+                  Join Game
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Status Messages */}
+        {gameState.error && (
+          <div className="rounded-xl border border-red-400/30 bg-red-400/15 text-red-200 p-3 text-sm mb-6 max-w-2xl mx-auto">
+            <strong className="mr-1">Error:</strong> {gameState.error}
+          </div>
+        )}
+
+        {gameState.isWaitingForMatch && (
+          <div className="rounded-xl border border-white/15 bg-white/10 p-4 text-white/80 text-sm text-center mb-6 max-w-2xl mx-auto">
+            <div className="mx-auto mb-2 w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            Looking for an opponent...
+          </div>
+        )}
+
+        {gameState.isWaitingForPlayer && (
+          <div className="rounded-xl border border-white/15 bg-white/10 p-4 text-white/80 text-sm text-center mb-6 max-w-2xl mx-auto">
+            <div className="mx-auto mb-2 w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            Waiting for your friend to join...
+            {gameState.createdGameId && (
+              <div className="mt-2">
+                <span className="text-emerald-400 font-mono">{gameState.createdGameId}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Stats Section */}
+        <div className="mt-16 text-center">
+          <h3 className="text-xl font-semibold text-zinc-100 mb-6">
+            Your Stats
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 max-w-3xl mx-auto">
+            <div className="bg-zinc-900/30 rounded-lg p-4">
+              <div className="text-2xl font-bold text-emerald-400">1247</div>
+              <div className="text-zinc-400 text-sm">Rating</div>
+            </div>
+            <div className="bg-zinc-900/30 rounded-lg p-4">
+              <div className="text-2xl font-bold text-emerald-400">23</div>
+              <div className="text-zinc-400 text-sm">Games Won</div>
+            </div>
+            <div className="bg-zinc-900/30 rounded-lg p-4">
+              <div className="text-2xl font-bold text-emerald-400">15</div>
+              <div className="text-zinc-400 text-sm">Games Lost</div>
+            </div>
+            <div className="bg-zinc-900/30 rounded-lg p-4">
+              <div className="text-2xl font-bold text-emerald-400">5</div>
+              <div className="text-zinc-400 text-sm">Draws</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
