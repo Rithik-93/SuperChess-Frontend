@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/notnil/chess"
@@ -27,17 +28,17 @@ func (g *Game) getBoardArray() [][]string {
 
 func (g *Game) getCurrentTurn() string {
 	if g.ChessGame.Position().Turn() == chess.White {
-		return "white"
+		return string(ColorWhite)
 	}
-	return "black"
+	return string(ColorBlack)
 }
 
 func (g *Game) isPlayerTurn(playerID uint) bool {
 	currentTurn := g.getCurrentTurn()
-	if currentTurn == "white" && g.Player1 != nil && g.Player1.ID == playerID {
+	if currentTurn == string(ColorWhite) && g.Player1 != nil && g.Player1.ID == playerID {
 		return true
 	}
-	if currentTurn == "black" && g.Player2 != nil && g.Player2.ID == playerID {
+	if currentTurn == string(ColorBlack) && g.Player2 != nil && g.Player2.ID == playerID {
 		return true
 	}
 	return false
@@ -63,14 +64,20 @@ func (g *Game) sendStateToPlayers() {
 		GameOver: g.ChessGame.Outcome() != chess.NoOutcome,
 	}
 
+	// Add timer information if available
+	if g.Timer != nil {
+		stateData.WhiteTime = int64(g.Timer.WhiteTime.Milliseconds())
+		stateData.BlackTime = int64(g.Timer.BlackTime.Milliseconds())
+	}
+
 	if g.ChessGame.Outcome() != chess.NoOutcome {
 		stateData.GameOver = true
 		switch g.ChessGame.Outcome() {
 		case chess.WhiteWon:
-			stateData.Winner = "white"
+			stateData.Winner = string(ColorWhite)
 			stateData.Reason = g.ChessGame.Method().String()
 		case chess.BlackWon:
-			stateData.Winner = "black"
+			stateData.Winner = string(ColorBlack)
 			stateData.Reason = g.ChessGame.Method().String()
 		case chess.Draw:
 			stateData.Reason = g.ChessGame.Method().String()
@@ -105,14 +112,20 @@ func (g *Game) sendStateToPlayer(player *Player) {
 		GameOver: g.ChessGame.Outcome() != chess.NoOutcome,
 	}
 
+	// Add timer information if available
+	if g.Timer != nil {
+		stateData.WhiteTime = int64(g.Timer.WhiteTime.Milliseconds())
+		stateData.BlackTime = int64(g.Timer.BlackTime.Milliseconds())
+	}
+
 	if g.ChessGame.Outcome() != chess.NoOutcome {
 		stateData.GameOver = true
 		switch g.ChessGame.Outcome() {
 		case chess.WhiteWon:
-			stateData.Winner = "white"
+			stateData.Winner = string(ColorWhite)
 			stateData.Reason = g.ChessGame.Method().String()
 		case chess.BlackWon:
-			stateData.Winner = "black"
+			stateData.Winner = string(ColorBlack)
 			stateData.Reason = g.ChessGame.Method().String()
 		case chess.Draw:
 			stateData.Reason = g.ChessGame.Method().String()
@@ -197,5 +210,161 @@ func sendErrorToPlayer(player *Player, errorMsg string) {
 	msgBytes, _ := json.Marshal(msg)
 
 	player.Conn.WriteMessage(websocket.TextMessage, msgBytes)
+}
+
+// Timer-related functions
+
+// startTimer initializes and starts the game timer
+func (g *Game) startTimer(initialTime, increment time.Duration) {
+	if g.Timer == nil {
+		g.Timer = &GameTimer{
+			WhiteTime: initialTime,
+			BlackTime: initialTime,
+			Increment: increment,
+			IsActive:  true,
+			StopChan:  make(chan bool),
+		}
+	} else {
+		g.Timer.WhiteTime = initialTime
+		g.Timer.BlackTime = initialTime
+		g.Timer.Increment = increment
+		g.Timer.IsActive = true
+	}
+
+	go g.runTimer()
+}
+
+// stopTimer stops the game timer
+func (g *Game) stopTimer() {
+	if g.Timer != nil {
+		g.Timer.IsActive = false
+		select {
+		case g.Timer.StopChan <- true:
+		default:
+		}
+	}
+}
+
+// runTimer runs the main timer loop
+func (g *Game) runTimer() {
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			if !g.Timer.IsActive {
+				return
+			}
+			g.updateTimer()
+		case <-g.Timer.StopChan:
+			return
+		}
+	}
+}
+
+// updateTimer updates the timer and checks for time up
+func (g *Game) updateTimer() {
+	g.Timer.Mutex.Lock()
+	defer g.Timer.Mutex.Unlock()
+
+	currentTurn := g.getCurrentTurn()
+	
+	if currentTurn == string(ColorWhite) {
+		g.Timer.WhiteTime -= time.Second
+		if g.Timer.WhiteTime <= 0 {
+			g.handleTimeUp(string(ColorWhite))
+			return
+		}
+	} else {
+		g.Timer.BlackTime -= time.Second
+		if g.Timer.BlackTime <= 0 {
+			g.handleTimeUp(string(ColorBlack))
+			return
+		}
+	}
+
+	g.sendTimerUpdate()
+}
+
+// handleTimeUp handles when a player runs out of time
+func (g *Game) handleTimeUp(loser string) {
+	g.Timer.IsActive = false
+	
+	winner := ColorBlack
+	if loser == string(ColorBlack) {
+		winner = ColorWhite
+	}
+
+	switch loser {
+	case string(ColorWhite):
+		g.ChessGame.Resign(chess.White)
+	case string(ColorBlack):
+		g.ChessGame.Resign(chess.Black)
+	}	
+
+	timeUpData := TimeUpData{
+		GameID: g.ID,
+		Loser:  loser,
+		Winner: string(winner),
+		Reason: "Time up",
+	}
+
+	msg := Message{Type: MsgTypeTimeUp}
+	data, _ := json.Marshal(timeUpData)
+	msg.Data = data
+	msgBytes, _ := json.Marshal(msg)
+
+	if g.Player1 != nil && g.Player1.Conn != nil {
+		g.Player1.Conn.WriteMessage(websocket.TextMessage, msgBytes)
+	}
+	if g.Player2 != nil && g.Player2.Conn != nil {
+		g.Player2.Conn.WriteMessage(websocket.TextMessage, msgBytes)
+	}
+
+	winnerStr := string(winner)
+	updateGameStateInDB(g.ID, g.ChessGame.FEN(), "", g.getCurrentTurn(), &winnerStr, &timeUpData.Reason)
+}
+
+// sendTimerUpdate sends current timer state to all players
+func (g *Game) sendTimerUpdate() {
+	if g.Timer == nil {
+		return
+	}
+
+	timerData := TimerData{
+		GameID:      g.ID,
+		WhiteTime:   int64(g.Timer.WhiteTime.Milliseconds()),
+		BlackTime:   int64(g.Timer.BlackTime.Milliseconds()),
+		CurrentTurn: g.getCurrentTurn(),
+	}
+
+	msg := Message{Type: MsgTypeTimerUpdate}
+	data, _ := json.Marshal(timerData)
+	msg.Data = data
+	msgBytes, _ := json.Marshal(msg)
+
+	if g.Player1 != nil && g.Player1.Conn != nil {
+		g.Player1.Conn.WriteMessage(websocket.TextMessage, msgBytes)
+	}
+	if g.Player2 != nil && g.Player2.Conn != nil {
+		g.Player2.Conn.WriteMessage(websocket.TextMessage, msgBytes)
+	}
+}
+
+// addTime adds increment time to the player who just moved
+func (g *Game) addTime(playerColor string) {
+	if g.Timer == nil || g.Timer.Increment <= 0 {
+		return
+	}
+
+	g.Timer.Mutex.Lock()
+	defer g.Timer.Mutex.Unlock()
+
+	if playerColor == string(ColorWhite) {
+		g.Timer.WhiteTime += g.Timer.Increment
+	} else {
+		g.Timer.BlackTime += g.Timer.Increment
+	}
 }
 

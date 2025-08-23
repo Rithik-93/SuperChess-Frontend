@@ -230,11 +230,14 @@ func handleJoin(player *Player, data json.RawMessage) {
 	games[gameID] = game
 	gamesMutex.Unlock()
 
+	// Start timer with 10 minutes + 5 seconds increment
+	game.startTimer(10*time.Minute, 5*time.Second)
+
 	log.Printf("Game %s started between %d (White) and %d (Black)", gameID, opponent.ID, player.ID)
 	
 	// Send player info with gameID to both players
-	sendPlayerInfo(opponent, gameID, "white")
-	sendPlayerInfo(player, gameID, "black")
+	sendPlayerInfo(opponent, gameID, string(ColorWhite))
+	sendPlayerInfo(player, gameID, string(ColorBlack))
 	
 	// Send initial game state
 	game.sendStateToPlayers()
@@ -430,8 +433,11 @@ func handleJoinInvite(player *Player, data json.RawMessage) {
 
 	log.Printf("Player %d joined game %s as black", player.ID, joinInviteData.GameID)
 	
-	sendPlayerInfo(game.Player1, joinInviteData.GameID, "white")
-	sendPlayerInfo(player, joinInviteData.GameID, "black")
+	// Start timer when second player joins
+	game.startTimer(10*time.Minute, 5*time.Second)
+	
+	sendPlayerInfo(game.Player1, joinInviteData.GameID, string(ColorWhite))
+	sendPlayerInfo(player, joinInviteData.GameID, string(ColorBlack))
 	
 	game.sendStateToPlayers()
 }
@@ -463,6 +469,11 @@ func removePlayerFromGame(player *Player, gameID string) {
 		}
 		game.Player2 = nil
 		log.Printf("Player %d (black) disconnected from game %s", player.ID, gameID)
+	}
+
+	// Stop timer if both players are disconnected
+	if game.Player1 == nil && game.Player2 == nil {
+		game.stopTimer()
 	}
 }
 
@@ -595,16 +606,23 @@ func handleMove(player *Player, data json.RawMessage) {
 	
 	log.Printf("Player %d made move %s in game %s", player.ID, moveData.Move, game.ID)
 
+	// Add time increment for the player who just moved
+	playerColor := string(ColorWhite)
+	if player.ID == game.Player2.ID {
+		playerColor = string(ColorBlack)
+	}
+	game.addTime(playerColor)
+
 	// Update game state in database
 	movesJson, _ := json.Marshal(convertMovesToStrings(game.ChessGame.Moves()))
 	var winner, endReason *string
 	if game.ChessGame.Outcome() != chess.NoOutcome {
 		switch game.ChessGame.Outcome() {
 		case chess.WhiteWon:
-			w := "white"
+			w := string(ColorWhite)
 			winner = &w
 		case chess.BlackWon:
-			w := "black"
+			w := string(ColorBlack)
 			winner = &w
 		}
 		r := game.ChessGame.Method().String()
