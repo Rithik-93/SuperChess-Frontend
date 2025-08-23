@@ -52,6 +52,22 @@ export interface GameStateData {
   gameOver: boolean;
   winner?: string;
   reason?: string;
+  whiteTime?: number; // milliseconds
+  blackTime?: number; // milliseconds
+}
+
+export interface TimerData {
+  gameId: string;
+  whiteTime: number; // milliseconds
+  blackTime: number; // milliseconds
+  currentTurn: string;
+}
+
+export interface TimeUpData {
+  gameId: string;
+  loser: string;
+  winner: string;
+  reason: string;
 }
 
 export interface ErrorData {
@@ -77,6 +93,8 @@ export interface GameState {
   gameOver: boolean;
   winner?: string;
   reason?: string;
+  whiteTime?: number; // milliseconds
+  blackTime?: number; // milliseconds
   isConnected: boolean;
   isWaitingForMatch: boolean;
   createdGameId: string | null;

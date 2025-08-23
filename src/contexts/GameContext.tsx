@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
-import type { GameState, WSMessage, JoinData, MoveData, GameStateData, PlayerInfoData, ErrorData, CreateGameData, JoinInviteData, GameCreatedData } from '../types';
+import type { GameState, WSMessage, JoinData, MoveData, GameStateData, PlayerInfoData, ErrorData, CreateGameData, JoinInviteData, GameCreatedData, TimerData, TimeUpData } from '../types';
 
 interface GameContextType {
   gameState: GameState;
@@ -168,8 +168,30 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           gameOver: gameStateData.gameOver,
           winner: gameStateData.winner,
           reason: gameStateData.reason,
+          whiteTime: gameStateData.whiteTime,
+          blackTime: gameStateData.blackTime,
           isWaitingForPlayer: false,
           createdGameId: null,
+        }));
+        break;
+
+      case 'timerUpdate':
+        const timerData: TimerData = message.data;
+        setGameState(prev => ({
+          ...prev,
+          whiteTime: timerData.whiteTime,
+          blackTime: timerData.blackTime,
+          turn: timerData.currentTurn,
+        }));
+        break;
+
+      case 'timeUp':
+        const timeUpData: TimeUpData = message.data;
+        setGameState(prev => ({
+          ...prev,
+          gameOver: true,
+          winner: timeUpData.winner,
+          reason: timeUpData.reason,
         }));
         break;
 

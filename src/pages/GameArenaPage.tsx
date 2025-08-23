@@ -5,6 +5,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import ChessBoard from '../components/Game/ChessBoard';
 import MoveHistory from '../components/Game/MoveHistory';
 import PlayerProfile from '../components/chess/PlayerProfile';
+import ChessTimer from '../components/Game/ChessTimer';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -12,13 +13,11 @@ import { Badge } from '../components/ui/badge';
 
 
 
-// Inline GameInfo Component
 const GameInfo: React.FC = () => {
   const { gameState } = useGame();
 
   return (
     <div className="space-y-4">
-      {/* Game Status */}
       <div className="flex items-center justify-between">
         <span className="text-zinc-400">Status:</span>
         <Badge variant={gameState.gameOver ? "destructive" : "default"}>
@@ -321,6 +320,11 @@ const GameArenaPage: React.FC = () => {
               isOnline={true}
             />
 
+            {/* Chess Timer */}
+            {gameState.gameId && (
+              <ChessTimer />
+            )}
+
             {/* Game Actions */}
             <Card>
               <CardHeader>
@@ -347,7 +351,7 @@ const GameArenaPage: React.FC = () => {
                     Welcome to ChessMaster!
                   </div>
                   {gameState.gameId && (
-                    <div className="text-zinc-400">
+                    <div className="text-zinc-500">
                       <span className="font-medium">System:</span>{" "}
                       Game started. Good luck!
                     </div>
