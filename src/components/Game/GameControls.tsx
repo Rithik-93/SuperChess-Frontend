@@ -30,7 +30,6 @@ const GameControls: React.FC = () => {
     resetGame();
   };
 
-  // If no active game, show game selection
   if (!gameState.gameId && !gameState.isWaitingForMatch && !gameState.isWaitingForPlayer) {
     return (
       <div className="space-y-4">
@@ -76,7 +75,6 @@ const GameControls: React.FC = () => {
     );
   }
 
-  // If waiting for match or player
   if (gameState.isWaitingForMatch || gameState.isWaitingForPlayer) {
     return (
       <div className="space-y-4 text-center">

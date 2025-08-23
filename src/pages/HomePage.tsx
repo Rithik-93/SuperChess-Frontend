@@ -9,8 +9,13 @@ import { Badge } from '../components/ui/badge';
 
 const HomePage: React.FC = () => {
   const { user, logout } = useAuth();
-  const { gameState, connect, joinGame, createGame, joinInvite } = useGame();
+  const { gameState, connect, joinGame, createGame, joinInvite, resetGame } = useGame();
   const [joinCode, setJoinCode] = useState('');
+  const [searchTime, setSearchTime] = useState(0);
+  const [gameSettings, setGameSettings] = useState({
+    timeControl: "10+0"
+  });
+  const [showCreateGameModal, setShowCreateGameModal] = useState(false);
   const navigate = useNavigate();
 
   // Connect on component mount if not connected
@@ -27,6 +32,34 @@ const HomePage: React.FC = () => {
     }
   }, [gameState.gameId, navigate]);
 
+  React.useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (gameState.isWaitingForMatch) {
+      setSearchTime(0);
+      timer = setInterval(() => {
+        setSearchTime(prev => prev + 1);
+      }, 1000);
+    } else {
+      setSearchTime(0);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [gameState.isWaitingForMatch]);
+
+  // Close create game modal when game starts or when not waiting for player
+  React.useEffect(() => {
+    if (gameState.gameId || (!gameState.isWaitingForPlayer && !showCreateGameModal)) {
+      setShowCreateGameModal(false);
+    }
+  }, [gameState.gameId, gameState.isWaitingForPlayer, showCreateGameModal]);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
   const handleJoinRandomGame = () => {
     if (!gameState.isConnected) {
       connect();
@@ -38,6 +71,10 @@ const HomePage: React.FC = () => {
   };
 
   const handleCreateGame = () => {
+    setShowCreateGameModal(true);
+  };
+
+  const handleConfirmCreateGame = () => {
     if (!gameState.isConnected) {
       connect();
       setTimeout(() => createGame(), 500);
@@ -202,21 +239,160 @@ const HomePage: React.FC = () => {
         )}
 
         {gameState.isWaitingForMatch && (
-          <div className="rounded-xl border border-white/15 bg-white/10 p-4 text-white/80 text-sm text-center mb-6 max-w-2xl mx-auto">
-            <div className="mx-auto mb-2 w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            Looking for an opponent...
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+            <Card className="w-full max-w-md mx-4">
+              <CardContent className="p-8 text-center">
+                {/* Animated Loading Spinner */}
+                <div className="mb-6">
+                  <div className="w-16 h-16 mx-auto mb-4 relative">
+                    <div className="absolute inset-0 border-4 border-emerald-400/20 rounded-full"></div>
+                    <div className="absolute inset-0 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                  <h2 className="text-2xl font-semibold text-zinc-100 mb-2">
+                    Searching for opponent...
+                  </h2>
+                  <p className="text-zinc-400">
+                    Finding the perfect match for you
+                  </p>
+                </div>
+
+                {/* Search Timer */}
+                <div className="mb-6">
+                  <div className="text-3xl font-mono text-emerald-400 mb-2">
+                    {formatTime(searchTime)}
+                  </div>
+                  <div className="text-zinc-500 text-sm">
+                    Search time
+                  </div>
+                </div>
+
+                {/* Game Info */}
+                <div className="space-y-4 mb-6">
+                  <div className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-md">
+                    <span className="text-zinc-300">Time Control:</span>
+                    <span className="text-zinc-100">10+0</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-md">
+                    <span className="text-zinc-300">Game Type:</span>
+                    <span className="text-zinc-100">Blitz</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-md">
+                    <span className="text-zinc-300">Rating Range:</span>
+                    <span className="text-zinc-100">1200-1300</span>
+                  </div>
+                </div>
+
+                {/* Cancel Button */}
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    resetGame();
+                  }}
+                  className="w-full"
+                >
+                  Cancel Search
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         )}
 
-        {gameState.isWaitingForPlayer && (
-          <div className="rounded-xl border border-white/15 bg-white/10 p-4 text-white/80 text-sm text-center mb-6 max-w-2xl mx-auto">
-            <div className="mx-auto mb-2 w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            Waiting for your friend to join...
-            {gameState.createdGameId && (
-              <div className="mt-2">
-                <span className="text-emerald-400 font-mono">{gameState.createdGameId}</span>
-              </div>
-            )}
+        {(showCreateGameModal || gameState.isWaitingForPlayer) && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+            <Card className="w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+              <CardContent className="p-8">
+                {/* Header */}
+                <div className="text-center mb-8">
+                  <h2 className="text-3xl font-bold text-zinc-100 mb-2">
+                    Create Private Game
+                  </h2>
+                  <p className="text-zinc-400">
+                    Configure your game settings and share the code with your friend
+                  </p>
+                </div>
+
+                <div className="space-y-6">
+                  {/* Time Control - Only show if game hasn't been created yet */}
+                  {!gameState.createdGameId && (
+                    <div>
+                      <label className="block text-zinc-200 font-medium mb-3">
+                        Time Control
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        {["5+0", "10+0", "15+10", "30+0"].map((time) => (
+                          <button
+                            key={time}
+                            onClick={() =>
+                              setGameSettings({ ...gameSettings, timeControl: time })
+                            }
+                            className={`p-3 rounded-md border transition-colors ${
+                              gameSettings.timeControl === time
+                                ? "border-emerald-400 bg-emerald-400/10 text-emerald-400"
+                                : "border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:border-zinc-600"
+                            }`}
+                          >
+                            {time}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Game Code Display */}
+                  {gameState.createdGameId && (
+                    <div className="text-center pt-4 border-t border-zinc-800">
+                      <div className="mb-4">
+                        <div className="mx-auto mb-2 w-5 h-5 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin" />
+                        <p className="text-zinc-100 font-medium">Waiting for your friend to join...</p>
+                      </div>
+                      <p className="text-zinc-400 text-sm mb-2">
+                        Share this code with your friend:
+                      </p>
+                      <div className="bg-zinc-800/50 border border-zinc-700 rounded-md p-4 mb-3">
+                        <span className="text-2xl font-mono text-emerald-400 tracking-wider">
+                          {gameState.createdGameId}
+                        </span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (gameState.createdGameId) {
+                            navigator.clipboard.writeText(gameState.createdGameId);
+                            // You could add a toast notification here
+                          }
+                        }}
+                      >
+                        Copy Code
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setShowCreateGameModal(false);
+                        resetGame();
+                      }}
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                    {!gameState.createdGameId && (
+                      <Button
+                        size="lg"
+                        className="flex-1"
+                        onClick={handleConfirmCreateGame}
+                      >
+                        Create Game
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
 

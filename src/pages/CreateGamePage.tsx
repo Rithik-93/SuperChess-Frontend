@@ -81,67 +81,6 @@ const CreateGamePage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Game Type */}
-              <div>
-                <label className="block text-zinc-200 font-medium mb-3">
-                  Game Type
-                </label>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { value: 'bullet', label: 'Bullet' },
-                    { value: 'blitz', label: 'Blitz' },
-                    { value: 'rapid', label: 'Rapid' }
-                  ].map((type) => (
-                    <button
-                      key={type.value}
-                      onClick={() =>
-                        setGameSettings({ ...gameSettings, gameType: type.value })
-                      }
-                      className={`p-3 rounded-md border transition-colors ${
-                        gameSettings.gameType === type.value
-                          ? 'border-emerald-400 bg-emerald-400/10 text-emerald-400'
-                          : 'border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:border-zinc-600'
-                      }`}
-                    >
-                      {type.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Color Choice */}
-              <div>
-                <label className="block text-zinc-200 font-medium mb-3">
-                  Your Color
-                </label>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { value: 'white', label: 'White', icon: '♔' },
-                    { value: 'black', label: 'Black', icon: '♚' },
-                    { value: 'random', label: 'Random', icon: '🎲' }
-                  ].map((color) => (
-                    <button
-                      key={color.value}
-                      onClick={() =>
-                        setGameSettings({ ...gameSettings, color: color.value })
-                      }
-                      className={`p-3 rounded-md border transition-colors ${
-                        gameSettings.color === color.value
-                          ? 'border-emerald-400 bg-emerald-400/10 text-emerald-400'
-                          : 'border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:border-zinc-600'
-                      }`}
-                    >
-                      <div className="text-xl mb-1">
-                        {color.icon}
-                      </div>
-                      <div className="text-sm">
-                        {color.label}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {/* Create Game Button */}
               <div className="pt-4">
                 <Button

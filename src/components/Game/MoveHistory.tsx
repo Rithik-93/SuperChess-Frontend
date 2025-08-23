@@ -13,7 +13,6 @@ const MoveHistory: React.FC = () => {
     );
   }
 
-  // Group moves into pairs (white, black)
   const movePairs = [];
   for (let i = 0; i < gameState.moves.length; i += 2) {
     movePairs.push({
